@@ -1,3 +1,5 @@
+import { HomepageFeed } from "./types"
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -44,11 +46,7 @@ export async function request<T>(
 }
 
 export function getHomepage() {
-  return request<{
-    title: string
-    description: string
-    status: string
-  }>("/homepage")
+  return request<HomepageFeed>("/homepage")
 }
 
 export function login(email: string, password: string) {
