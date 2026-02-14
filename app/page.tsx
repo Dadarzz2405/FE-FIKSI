@@ -1,5 +1,5 @@
 import { getHomepage } from "@/lib/api"
-
+import "globals"
 export default async function HomePage() {
   const data = await getHomepage()
 

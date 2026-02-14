@@ -1,0 +1,125 @@
+/* ============================= */
+/* GitHub-Style Dark Theme       */
+/* ============================= */
+
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --border-color: #30363d;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --accent: #238636;
+  --danger: #da3633;
+}
+
+/* Reset */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+}
+
+/* Headings */
+h1, h2, h3 {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+h1 {
+  font-size: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+h2 {
+  font-size: 1.4rem;
+  margin-top: 1rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+}
+
+/* Main container */
+main {
+  background-color: var(--bg-primary);
+}
+
+/* Cards / Articles */
+article {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: border 0.2s ease;
+}
+
+article:hover {
+  border-color: var(--accent);
+}
+
+/* Lists */
+ul {
+  list-style: disc;
+}
+
+li {
+  color: var(--text-primary);
+}
+
+/* Links */
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Small text */
+small {
+  color: var(--text-secondary);
+}
+
+/* Status label styling */
+strong {
+  color: var(--text-primary);
+}
+
+/* Buttons (future-proofing) */
+button {
+  background-color: var(--accent);
+  border: 1px solid var(--accent);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+button:hover {
+  background-color: #2ea043;
+}
+
+/* Scrollbar (optional, GitHub vibe) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
