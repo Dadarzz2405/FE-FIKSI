@@ -4,6 +4,7 @@ export interface HomepagePost {
   description?: string;
   created_at: string;
   author?: string;
+  image_url?: string;  
 }
 
 export interface HomepageFeed {

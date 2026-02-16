@@ -57,7 +57,6 @@ export default function HomePage() {
         margin: "0 auto",
       }}
     >
-      {/* Header */}
       <div style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
           Homepage Feed
