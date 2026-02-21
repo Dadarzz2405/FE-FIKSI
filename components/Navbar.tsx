@@ -104,14 +104,9 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            <>
-              <Link href="/login" className={styles.loginLink}>
-                Sign in
-              </Link>
-              <Link href="/signup" className={styles.signupButton}>
-                Sign up
-              </Link>
-            </>
+            <Link href="/login" className={styles.authButton}>
+              Login / Sign up
+            </Link>
           )}
         </div>
       </div>

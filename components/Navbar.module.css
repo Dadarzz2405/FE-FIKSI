@@ -32,6 +32,7 @@
 
 .logo:hover {
   color: #ffffff;
+  text-decoration: none;
 }
 
 /* Nav links */
@@ -54,6 +55,7 @@
 .navLink:hover {
   color: #e6edf3;
   background-color: #21262d;
+  text-decoration: none;
 }
 
 /* Auth area */
@@ -64,33 +66,25 @@
   margin-left: auto;
 }
 
-.loginLink {
-  color: #8b949e;
-  text-decoration: none;
-  font-size: 0.875rem;
-  padding: 0.375rem 0.625rem;
-  border-radius: 6px;
-  transition: color 0.15s;
-}
-
-.loginLink:hover {
+/* Single Login / Sign up button */
+.authButton {
   color: #e6edf3;
-}
-
-.signupButton {
-  color: #ffffff;
-  background-color: #238636;
-  border: 1px solid rgba(240, 246, 252, 0.1);
+  background-color: transparent;
+  border: 1px solid #30363d;
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
   padding: 0.375rem 0.875rem;
   text-decoration: none;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
 }
 
-.signupButton:hover {
-  background-color: #2ea043;
+.authButton:hover {
+  background-color: #21262d;
+  border-color: #8b949e;
+  color: #ffffff;
+  text-decoration: none;
 }
 
 /* Skeleton loader */
@@ -212,6 +206,7 @@
 .dropdownItem:hover {
   background-color: #21262d;
   color: #e6edf3;
+  text-decoration: none;
 }
 
 .dropdownItemDanger:hover {
