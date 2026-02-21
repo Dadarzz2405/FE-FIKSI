@@ -27,7 +27,7 @@ export async function request<T>(
   })
 
   if (!res.ok) {
-    let message = "API request failed"
+    let message = "Permintaan API gagal"
 
     try {
       const error = await res.json()

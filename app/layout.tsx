@@ -19,9 +19,9 @@ function LayoutShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Navbar />
-      <div className="flex flex-1">
+      <div className="appShell">
         <Sidebar />
-        <main className="flex-1 p-6 bg-gray-100" style={{ marginLeft: "260px" }}>
+        <main className="appMain">
           {children}
         </main>
       </div>
@@ -35,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen flex flex-col">
+    <html lang="id">
+      <body className="appBody">
         <LayoutShell>{children}</LayoutShell>
       </body>
     </html>

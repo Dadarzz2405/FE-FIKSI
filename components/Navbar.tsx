@@ -3,18 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./Navbar.module.css"
 
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/posts", label: "Posts" },
-  { href: "/quizzes", label: "Quizzes" },
-]
-
 export default function Navbar() {
-  const pathname = usePathname()
   const { user, loading, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -34,21 +26,15 @@ export default function Navbar() {
     <header className={styles.navbar}>
       <div className={styles.navInner}>
         <Link href="/" className={styles.logo}>
-          FIKSI
+          <Image
+            src="/garuda_icon.png"
+            alt="Nusa CoNex"
+            width={26}
+            height={26}
+            className={styles.logoIcon}
+          />
+          <span className={styles.logoText}>Nusa CoNex</span>
         </Link>
-
-        <nav className={styles.navLinks}>
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={styles.navLink}
-              aria-current={pathname === item.href ? "page" : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
 
         <div className={styles.authArea}>
           {loading ? (
@@ -87,7 +73,7 @@ export default function Navbar() {
                   </div>
                   <div className={styles.dropdownDivider} />
                   <Link href={`/profile/${user.username}`} className={styles.dropdownItem} role="menuitem">
-                    Profile
+                    Profil
                   </Link>
                   <button
                     type="button"
@@ -98,14 +84,14 @@ export default function Navbar() {
                       setMenuOpen(false)
                     }}
                   >
-                    Sign out
+                    Keluar
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <Link href="/login" className={styles.authButton}>
-              Login / Sign up
+              Masuk
             </Link>
           )}
         </div>
