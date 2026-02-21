@@ -86,7 +86,7 @@ export default function Navbar() {
                     )}
                   </div>
                   <div className={styles.dropdownDivider} />
-                  <Link href="/profile" className={styles.dropdownItem} role="menuitem">
+                  <Link href={`/profile/${user.username}`} className={styles.dropdownItem} role="menuitem">
                     Profile
                   </Link>
                   <button
