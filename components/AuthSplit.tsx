@@ -58,8 +58,9 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
 
     try {
       const data = await request<{
-        access_token: string
-        token_type: string
+        access_token?: string | null
+        requires_email_verification?: boolean
+        message?: string
         user: object
       }>("/auth/signup", "POST", {
         email: signupEmail,
@@ -68,9 +69,16 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
         real_name: signupRealName,
       })
 
-      localStorage.setItem("access_token", data.access_token)
-      window.dispatchEvent(new Event("auth-changed"))
-      router.push("/")
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token)
+        window.dispatchEvent(new Event("auth-changed"))
+        router.push("/")
+      } else {
+        setSignupError(
+          data.message ||
+            "Akun berhasil dibuat. Cek email Anda dan klik tautan verifikasi, lalu coba masuk."
+        )
+      }
     } catch (err) {
       setSignupError(err instanceof Error ? err.message : "Gagal mendaftar")
     } finally {

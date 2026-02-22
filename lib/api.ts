@@ -19,12 +19,23 @@ export async function request<T>(
     headers["Content-Type"] = "application/json"
   }
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method,
-    headers,
-    credentials: "include",
-    body: body ? JSON.stringify(body) : undefined,
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method,
+      headers,
+      credentials: "include",
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  } catch (e) {
+    const msg =
+      e instanceof TypeError && e.message === "Failed to fetch"
+        ? "Tidak bisa terhubung ke server. Pastikan backend berjalan di http://localhost:8000"
+        : e instanceof Error
+          ? e.message
+          : "Koneksi gagal"
+    throw new Error(msg)
+  }
 
   if (!res.ok) {
     let message = "Permintaan API gagal"
@@ -45,7 +56,7 @@ export async function request<T>(
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
 export function getHomepage() {
-  return request<HomepageFeed>("/homepage")
+  return request<HomepageFeed>("/homepage/")
 }
 
 export function login(email: string, password: string) {
@@ -113,7 +124,7 @@ export type PostCreatePayload = {
 }
 
 export function getPosts(page = 1, limit = 10) {
-  return request<PostListResponse>(`/posts?page=${page}&limit=${limit}`)
+  return request<PostListResponse>(`/posts/?page=${page}&limit=${limit}`)
 }
 
 export function getPost(id: string) {
@@ -122,7 +133,7 @@ export function getPost(id: string) {
 
 export function getMyPosts(token: string, page = 1, limit = 10) {
   return request<PostListResponse>(
-    `/posts/my?page=${page}&limit=${limit}`,
+    `/posts/my/?page=${page}&limit=${limit}`,
     "GET",
     undefined,
     token
