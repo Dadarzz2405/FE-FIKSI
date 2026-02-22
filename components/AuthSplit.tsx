@@ -79,8 +79,9 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
   }
 
   return (
-    <div className={`auth-shell ${mode === "signup" ? "mode-signup" : "mode-login"}`}>
-      <section className="auth-visual" aria-label="Preview aplikasi">
+    <div className="auth-page">
+      <div className={`auth-shell ${mode === "signup" ? "mode-signup" : "mode-login"}`}>
+        <section className="auth-visual" aria-label="Preview aplikasi">
         <div className="auth-brand">
           <Image
             src="/garuda_icon.png"
@@ -149,12 +150,12 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
         >
           {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
         </button>
-      </section>
+        </section>
 
-      <section className="auth-form-pane">
-        <Link href="/" className="auth-back">
-          ← Kembali ke Nusa CoNex
-        </Link>
+        <section className="auth-form-pane">
+          <Link href="/" className="auth-back">
+            ← Kembali ke Nusa CoNex
+          </Link>
 
         <div className="auth-slider-viewport">
           <div className="auth-slider-track">
@@ -297,7 +298,8 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }
