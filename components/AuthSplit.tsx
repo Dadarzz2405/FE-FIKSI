@@ -4,8 +4,6 @@ import { FormEvent, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signInWithPopup } from "firebase/auth"
-import { firebaseAuth, googleProvider } from "@/lib/firebase"
 import { login, request } from "@/lib/api"
 
 type AuthMode = "login" | "signup"
@@ -137,47 +135,23 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
   }
 
   /**
-   * Firebase Google Sign-In flow:
-   * 1. Firebase popup opens Google account chooser
-   * 2. User picks account → Firebase returns credentials
-   * 3. We get the ID token and POST it to /auth/firebase
-   * 4. Backend verifies, creates user if needed, returns access_token
-   * 5. Store token, dispatch auth-changed, redirect to profile
+   * Supabase Google OAuth flow:
+   * 1. Fetch the Supabase OAuth URL from our backend (/auth/google/url)
+   * 2. Redirect the browser to that URL
+   * 3. Supabase handles the Google account chooser
+   * 4. After consent, Supabase redirects to /auth/callback with access_token in the hash
+   * 5. The /auth/callback page reads the token, stores it, and redirects to the user's profile
    */
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
     const errorSetter = mode === "login" ? setLoginError : setSignupError
 
     try {
-      // Step 1–2: open Google popup via Firebase
-      const result = await signInWithPopup(firebaseAuth, googleProvider)
-
-      // Step 3: get the Firebase ID token
-      const idToken = await result.user.getIdToken()
-
-      // Step 4: send to our backend
-      const data = await request<{
-        access_token: string
-        user: { username: string }
-      }>("/auth/firebase", "POST", { id_token: idToken })
-
-      // Step 5: store and redirect
-      localStorage.setItem("access_token", data.access_token)
-      window.dispatchEvent(new Event("auth-changed"))
-      router.push(`/profile/${data.user.username}`)
-
-    } catch (err: unknown) {
-      // firebase popup closed by user — ignore silently
-      if (
-        err &&
-        typeof err === "object" &&
-        "code" in err &&
-        (err as { code: string }).code === "auth/popup-closed-by-user"
-      ) {
-        return
-      }
+      const data = await request<{ url: string }>("/auth/google/url")
+      // Full page redirect — Supabase takes over from here
+      window.location.href = data.url
+    } catch (err) {
       errorSetter(err instanceof Error ? err.message : "Google sign-in gagal. Coba lagi.")
-    } finally {
       setGoogleLoading(false)
     }
   }
@@ -269,7 +243,7 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
                       {googleLoading
                         ? <span className="auth-spinner" style={{ borderTopColor: "#555", borderColor: "rgba(0,0,0,0.12)" }} />
                         : <GoogleIcon />}
-                      {googleLoading ? "Membuka Google..." : "Lanjutkan dengan Google"}
+                      {googleLoading ? "Mengalihkan ke Google..." : "Lanjutkan dengan Google"}
                     </button>
 
                     <Divider label="atau masuk dengan email" />
@@ -340,7 +314,7 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
                       {googleLoading
                         ? <span className="auth-spinner" style={{ borderTopColor: "#555", borderColor: "rgba(0,0,0,0.12)" }} />
                         : <GoogleIcon />}
-                      {googleLoading ? "Membuka Google..." : "Daftar dengan Google"}
+                      {googleLoading ? "Mengalihkan ke Google..." : "Daftar dengan Google"}
                     </button>
 
                     <Divider label="atau daftar dengan email" />
