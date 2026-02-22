@@ -23,11 +23,20 @@ const sidebarItems: SidebarItem[] = [
     ),
   },
   {
-    name: "Postingan",
+    name: "Pertanyaan",
     href: "/posts",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M7 4h10M7 9h10M7 14h6M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    name: "Kategori",
+    href: "/categories",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 6h16M4 10h16M4 14h10M4 18h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -59,13 +68,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-brand">
-          <Image
-            src="/garuda_icon.png"
-            alt="Nusa CoNex"
-            width={24}
-            height={24}
-            className="sidebar-brand-icon"
-          />
+          <Image src="/garuda_icon.png" alt="Nusa CoNex" width={24} height={24} className="sidebar-brand-icon" />
           <h2 className="sidebar-title">Nusa CoNex</h2>
         </div>
         <p className="sidebar-subtitle">Dasbor</p>
@@ -78,7 +81,9 @@ export default function Sidebar() {
               <Link
                 href={item.href}
                 className={`sidebar-link ${
-                  pathname === item.href ? "active" : ""
+                  pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+                    ? "active"
+                    : ""
                 }`}
               >
                 <span className="sidebar-icon">{item.icon}</span>

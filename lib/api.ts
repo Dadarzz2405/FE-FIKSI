@@ -3,7 +3,7 @@ import { HomepageFeed } from "./types"
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE"
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 export async function request<T>(
   endpoint: string,
@@ -87,6 +87,47 @@ export function getMe(token: string) {
   }>("/auth/me", "GET", undefined, token)
 }
 
+// ── Categories ───────────────────────────────────────────────────────────────
+
+export type Category = {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  icon: string | null
+  post_count: number
+}
+
+export type CategoryListResponse = {
+  categories: Category[]
+  total: number
+}
+
+export function getCategories() {
+  return request<CategoryListResponse>("/categories/")
+}
+
+export function getCategory(slug: string) {
+  return request<Category>(`/categories/${slug}`)
+}
+
+export function getPostsByCategory(slug: string, page = 1, limit = 10) {
+  return request<{
+    category: { id: string; name: string; slug: string; icon: string | null }
+    posts: {
+      id: string
+      title: string
+      excerpt: string | null
+      image_url: string | null
+      created_at: string
+      author: { username: string; avatar_url: string | null } | null
+    }[]
+    total: number
+    page: number
+    limit: number
+  }>(`/categories/${slug}/posts?page=${page}&limit=${limit}`)
+}
+
 // ── Posts ────────────────────────────────────────────────────────────────────
 
 export type PostAuthor = {
@@ -106,6 +147,8 @@ export type Post = {
   updated_at: string
   author_id: string
   author: PostAuthor | null
+  category_id: string | null
+  category?: { id: string; name: string; slug: string; icon: string | null } | null
 }
 
 export type PostListResponse = {
@@ -121,6 +164,7 @@ export type PostCreatePayload = {
   excerpt?: string
   image_url?: string
   is_published?: boolean
+  category_id?: string
 }
 
 export function getPosts(page = 1, limit = 10) {
@@ -154,4 +198,38 @@ export function updatePost(
 
 export function deletePost(token: string, id: string) {
   return request<null>(`/posts/${id}`, "DELETE", undefined, token)
+}
+
+// ── Comments ─────────────────────────────────────────────────────────────────
+
+export type CommentAuthor = {
+  username: string
+  avatar_url: string | null
+  real_name: string | null
+}
+
+export type Comment = {
+  id: string
+  post_id: string
+  content: string
+  is_accepted: boolean
+  created_at: string
+  author_id: string
+  author: CommentAuthor | null
+}
+
+export function getComments(postId: string) {
+  return request<Comment[]>(`/posts/${postId}/comments`)
+}
+
+export function createComment(token: string, postId: string, content: string) {
+  return request<Comment>(`/posts/${postId}/comments`, "POST", { content }, token)
+}
+
+export function acceptComment(token: string, commentId: string) {
+  return request<Comment>(`/comments/${commentId}/accept`, "PATCH", undefined, token)
+}
+
+export function deleteComment(token: string, commentId: string) {
+  return request<null>(`/comments/${commentId}`, "DELETE", undefined, token)
 }
