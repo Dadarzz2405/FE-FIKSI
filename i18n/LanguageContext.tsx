@@ -83,6 +83,40 @@ function unflattenStrings(flat: Record<string, string>): TranslationKeys {
 }
 
 /**
+ * MyMemory API Response Types
+ */
+interface MyMemoryMatch {
+  id: string
+  segment: string
+  translation: string
+  source: string
+  target: string
+  quality: string | number
+  reference: string | null
+  "usage-count": number
+  subject: string | null
+  "created-by": string
+  "last-updated-by": string
+  "create-date": string
+  "last-update-date": string
+  match: number
+  penalty: number
+}
+
+interface MyMemoryResponse {
+  responseData: {
+    translatedText: string
+    match: number
+  }
+  quotaFinished: boolean
+  mtLangSupported: null
+  responseDetails: string
+  responseStatus: number
+  responderId: string | null
+  matches: MyMemoryMatch[]
+}
+
+/**
  * Translate a batch of strings using the MyMemory Translation API.
  *
  * Why MyMemory:
@@ -144,10 +178,26 @@ async function translateBatch(
           return [key, text] // Fall back to original text
         }
 
-        const data = await res.json()
+        const data = await res.json() as MyMemoryResponse
         
         // MyMemory returns the translation in responseData.translatedText
-        const translatedText = data?.responseData?.translatedText
+        // Sometimes responseData.translatedText is empty but translation exists in matches array
+        let translatedText = data?.responseData?.translatedText
+        
+        // Fallback: check matches array if translatedText is empty
+        if (!translatedText && data?.matches?.length > 0) {
+          // Find the best match (highest quality)
+          const bestMatch = data.matches.reduce<MyMemoryMatch>((best, current) => {
+            const currentQuality = parseInt(String(current.quality)) || 0
+            const bestQuality = parseInt(String(best.quality)) || 0
+            return currentQuality > bestQuality ? current : best
+          }, data.matches[0])
+          
+          if (bestMatch?.translation) {
+            translatedText = bestMatch.translation
+          }
+        }
+        
         if (translatedText && translatedText !== text) {
           return [key, translatedText]
         } else {
@@ -189,10 +239,14 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   // On mount: restore saved locale preference
   useEffect(() => {
+    let mounted = true
     try {
       const stored = localStorage.getItem(LOCALE_KEY) as Locale | null
-      if (stored === "en" || stored === "id") setLocaleState(stored)
+      if (mounted && (stored === "en" || stored === "id")) {
+        setLocaleState(stored)
+      }
     } catch { /* SSR / private mode — ignore */ }
+    return () => { mounted = false }
   }, [])
 
   // Whenever locale switches to English, load the translation
@@ -200,13 +254,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (locale !== "en") return
     if (enTranslation) return // already loaded this session
 
+    let mounted = true
+
     // Check localStorage cache first
     try {
       const currentHash = hashObject(id)
       const cachedHash = localStorage.getItem(EN_HASH_KEY)
       const cachedData = localStorage.getItem(EN_CACHE_KEY)
 
-      if (cachedHash === currentHash && cachedData) {
+      if (mounted && cachedHash === currentHash && cachedData) {
         // Cache hit — id.ts hasn't changed since last translation
         setEnTranslation(JSON.parse(cachedData) as TranslationKeys)
         return
@@ -218,6 +274,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const flat = collectStrings(id)
     translateBatch(flat, "en")
       .then((translatedFlat) => {
+        if (!mounted) return
         const nested = unflattenStrings(translatedFlat)
         setEnTranslation(nested)
         try {
@@ -225,7 +282,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           localStorage.setItem(EN_HASH_KEY, hashObject(id))
         } catch { /* storage full — not critical */ }
       })
-      .finally(() => setTranslating(false))
+      .finally(() => {
+        if (mounted) setTranslating(false)
+      })
+      
+    return () => { mounted = false }
   }, [locale, enTranslation])
 
   const setLocale = useCallback((next: Locale) => {
