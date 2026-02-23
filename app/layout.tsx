@@ -3,7 +3,6 @@
 import "./globals.css"
 import Navbar from "@/components/Navbar"
 import Sidebar from "@/components/Sidebar"
-import { LanguageProvider } from "@/i18n/LanguageContext"
 import { usePathname } from "next/navigation"
 
 // Auth routes that should NOT have Navbar/Sidebar
@@ -38,9 +37,7 @@ export default function RootLayout({
   return (
     <html lang="id">
       <body className="appBody">
-        <LanguageProvider>
-          <LayoutShell>{children}</LayoutShell>
-        </LanguageProvider>
+        <LayoutShell>{children}</LayoutShell>
       </body>
     </html>
   )
