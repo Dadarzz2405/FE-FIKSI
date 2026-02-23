@@ -38,10 +38,14 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
 
   const normalize = (u: string) => u?.replace(/^@/, "").toLowerCase() ?? ""
+
+  // ✅ FIX: compare by both username AND user ID for reliability
   const isOwnProfile =
     !authLoading &&
     !!currentUser &&
-    (normalize(currentUser.username) === normalize(username) ||
+    !!profile &&
+    (currentUser.id === profile.id ||
+      normalize(currentUser.username) === normalize(username) ||
       normalize(currentUser.username) === normalize(rawUsername))
 
   useEffect(() => {
@@ -186,7 +190,7 @@ export default function ProfilePage() {
                 </p>
               </div>
 
-              {/* Edit button — redirects to dedicated edit page */}
+              {/* ✅ Edit button — now correctly shown when isOwnProfile is true */}
               {isOwnProfile && (
                 <Link
                   href={`/profile/${profile.username}/edit`}
