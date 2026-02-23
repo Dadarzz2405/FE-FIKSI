@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, FormEvent } from "react"
+import { useEffect, useState, FormEvent, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { getPosts, createPost, deletePost, getCategories, Post, Category } from "@/lib/api"
+import { getPosts, createPost, deletePost, getCategories, uploadImage, Post, Category } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./page.module.css"
 
@@ -21,12 +21,14 @@ export default function PostsPage() {
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
-  const [imageUrl, setImageUrl] = useState("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isPublished, setIsPublished] = useState(true)
   const [categoryId, setCategoryId] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -56,16 +58,37 @@ export default function PostsPage() {
       .catch(() => {/* non-critical */})
   }, [])
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    // Generate local preview
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  function clearImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!token) return
     setFormError(null)
     setSubmitting(true)
     try {
+      let imageUrl: string | undefined
+      if (imageFile) {
+        imageUrl = await uploadImage(token, imageFile, "post-images")
+      }
+
       const newPost = await createPost(token, {
         title,
         content,
-        image_url: imageUrl || undefined,
+        image_url: imageUrl,
         is_published: isPublished,
         category_id: categoryId || undefined,
       })
@@ -75,7 +98,7 @@ export default function PostsPage() {
       }
       setTitle("")
       setContent("")
-      setImageUrl("")
+      clearImage()
       setIsPublished(true)
       setCategoryId("")
       setShowForm(false)
@@ -176,16 +199,83 @@ export default function PostsPage() {
               </select>
             </div>
 
+            {/* ── File upload (replaces URL input) ── */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>URL Gambar (opsional)</label>
-              <input
-                className={styles.input}
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-                disabled={submitting}
-              />
+              <label className={styles.label}>Gambar (opsional)</label>
+
+              {imagePreview ? (
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      width: "100%",
+                      maxHeight: "220px",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-color)",
+                      background: "#0d1117",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    disabled={submitting}
+                    style={{
+                      position: "absolute",
+                      top: "6px",
+                      right: "6px",
+                      background: "rgba(0,0,0,0.65)",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: "26px",
+                      height: "26px",
+                      color: "#fff",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <label
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    padding: "1.5rem",
+                    border: "2px dashed var(--border-color)",
+                    borderRadius: "8px",
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    background: "#0d1117",
+                    color: "var(--text-muted)",
+                    fontSize: "0.875rem",
+                    transition: "border-color 180ms ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                >
+                  <span style={{ fontSize: "1.5rem" }}>🖼️</span>
+                  <span>Klik untuk pilih gambar</span>
+                  <span style={{ fontSize: "0.78rem" }}>PNG, JPG, GIF, WebP — maks. 5 MB</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleFileChange}
+                    disabled={submitting}
+                  />
+                </label>
+              )}
             </div>
 
             <div className={styles.formActions}>
@@ -208,7 +298,7 @@ export default function PostsPage() {
               </button>
               <button type="submit" className={styles.submitButton} disabled={submitting}>
                 {submitting ? (
-                  <><span className={styles.spinner} />Menyimpan...</>
+                  <><span className={styles.spinner} />Mengunggah...</>
                 ) : "Kirim Pertanyaan"}
               </button>
             </div>
