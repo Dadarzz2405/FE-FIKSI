@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useAuth } from "@/hooks/useAuth"
+import LanguageToggle from "./LanguageToggle"
 import styles from "./Navbar.module.css"
 
 export default function Navbar() {
@@ -37,6 +38,7 @@ export default function Navbar() {
         </Link>
 
         <div className={styles.authArea}>
+          <LanguageToggle compact />
           {loading ? (
             <div className={styles.avatarSkeleton} />
           ) : user ? (
