@@ -22,11 +22,12 @@ export default function EditProfilePage() {
   const rawUsername = params?.username as string
   const username = rawUsername?.replace(/^@/, "")
 
-  const { user: currentUser, token, refreshUser } = useAuth()
+  // ✅ FIX: also destructure authLoading so we wait for session to resolve
+  const { user: currentUser, token, refreshUser, loading: authLoading } = useAuth()
   const router = useRouter()
 
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(true)
   const [unauthorized, setUnauthorized] = useState(false)
 
   // Form fields
@@ -44,6 +45,7 @@ export default function EditProfilePage() {
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
+  // Fetch profile data
   useEffect(() => {
     if (!username) return
     request<Profile>(`/profile/${username}`)
@@ -54,17 +56,25 @@ export default function EditProfilePage() {
         setEditBio(p.bio ?? "")
       })
       .catch(() => setUnauthorized(true))
-      .finally(() => setLoading(false))
+      .finally(() => setProfileLoading(false))
   }, [username])
 
-  // Guard: only own profile
+  // ✅ FIX: guard waits for BOTH profile fetch AND auth to resolve
+  // Covers: (a) not logged in at all, (b) logged in as wrong user
   useEffect(() => {
-    if (!loading && currentUser && profile) {
-      if (currentUser.username !== profile.username) {
-        setUnauthorized(true)
-      }
+    if (profileLoading || authLoading) return // still loading — wait
+
+    if (!currentUser) {
+      // Not logged in → redirect to login
+      router.replace("/login")
+      return
     }
-  }, [loading, currentUser, profile])
+
+    if (profile && currentUser.username !== profile.username) {
+      // Logged in but it's someone else's profile
+      setUnauthorized(true)
+    }
+  }, [profileLoading, authLoading, currentUser, profile, router])
 
   function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -124,7 +134,8 @@ export default function EditProfilePage() {
     }
   }
 
-  if (loading) {
+  // Show loading while either auth or profile is still resolving
+  if (profileLoading || authLoading) {
     return (
       <main style={styles.page}>
         <div style={styles.skeleton}>
@@ -188,12 +199,8 @@ export default function EditProfilePage() {
             <label
               htmlFor="avatar-upload"
               style={styles.avatarOverlay}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = "1"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = "0"
-              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = "1" }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = "0" }}
             >
               <span style={{ fontSize: "1.4rem" }}>📷</span>
               <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>Ganti Foto</span>
@@ -268,10 +275,7 @@ export default function EditProfilePage() {
                   id="edit-username"
                   type="text"
                   value={editUsername}
-                  onChange={(e) => {
-                    setEditUsername(e.target.value)
-                    setSaveSuccess(false)
-                  }}
+                  onChange={(e) => { setEditUsername(e.target.value); setSaveSuccess(false) }}
                   disabled={saving}
                   placeholder="username"
                   maxLength={50}
@@ -292,10 +296,7 @@ export default function EditProfilePage() {
                 id="edit-name"
                 type="text"
                 value={editName}
-                onChange={(e) => {
-                  setEditName(e.target.value)
-                  setSaveSuccess(false)
-                }}
+                onChange={(e) => { setEditName(e.target.value); setSaveSuccess(false) }}
                 disabled={saving}
                 placeholder="Nama kamu"
                 style={styles.input}
@@ -312,10 +313,7 @@ export default function EditProfilePage() {
               <textarea
                 id="edit-bio"
                 value={editBio}
-                onChange={(e) => {
-                  setEditBio(e.target.value)
-                  setSaveSuccess(false)
-                }}
+                onChange={(e) => { setEditBio(e.target.value); setSaveSuccess(false) }}
                 disabled={saving}
                 placeholder="Ceritakan sedikit tentang dirimu..."
                 rows={4}
@@ -353,7 +351,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: "1.5rem",
-    animation: "pageEnter 360ms ease",
   },
   breadcrumb: {
     display: "flex",
@@ -362,24 +359,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.82rem",
     color: "#6e7681",
   },
-  breadcrumbLink: {
-    color: "#8b949e",
-    textDecoration: "none",
-  },
-  breadcrumbSep: {
-    color: "#3d444d",
-  },
-  breadcrumbCurrent: {
-    color: "#e6edf3",
-    fontWeight: 500,
-  },
+  breadcrumbLink: { color: "#8b949e", textDecoration: "none" },
+  breadcrumbSep: { color: "#3d444d" },
+  breadcrumbCurrent: { color: "#e6edf3", fontWeight: 500 },
   container: {
     display: "grid",
     gridTemplateColumns: "240px 1fr",
     gap: "1.5rem",
     alignItems: "start",
   },
-  // ── Avatar panel ──
   avatarPanel: {
     background: "#161b22",
     border: "1px solid #30363d",
@@ -452,7 +440,6 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     lineHeight: 1.5,
   },
-  // ── Form panel ──
   formPanel: {
     background: "#161b22",
     border: "1px solid #30363d",
@@ -478,9 +465,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#d7e0ea",
     letterSpacing: "0.01em",
   },
-  inputWrapper: {
-    position: "relative",
-  },
+  inputWrapper: { position: "relative" },
   inputPrefix: {
     position: "absolute",
     left: "0.7rem",
@@ -503,16 +488,8 @@ const styles: Record<string, React.CSSProperties> = {
     transition: "border-color 180ms ease, box-shadow 180ms ease",
     boxSizing: "border-box",
   },
-  fieldHint: {
-    fontSize: "0.73rem",
-    color: "#6e7681",
-  },
-  fieldError: {
-    fontSize: "0.8rem",
-    color: "#ffb8b3",
-    textAlign: "center",
-    margin: 0,
-  },
+  fieldHint: { fontSize: "0.73rem", color: "#6e7681" },
+  fieldError: { fontSize: "0.8rem", color: "#ffb8b3", textAlign: "center", margin: 0 },
   alertError: {
     display: "flex",
     alignItems: "center",
@@ -556,7 +533,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.5rem 1.15rem",
     borderRadius: "8px",
     cursor: "pointer",
-    transition: "background 180ms ease, transform 180ms ease",
+    transition: "background 180ms ease",
     textDecoration: "none",
     whiteSpace: "nowrap" as const,
   },
@@ -612,9 +589,5 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#ffb8b3",
     fontSize: "0.9rem",
   },
-  backLink: {
-    color: "#8b949e",
-    textDecoration: "none",
-    fontSize: "0.85rem",
-  },
+  backLink: { color: "#8b949e", textDecoration: "none", fontSize: "0.85rem" },
 }

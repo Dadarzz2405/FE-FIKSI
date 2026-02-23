@@ -124,8 +124,10 @@ export type PostCreatePayload = {
 
 export function getPosts(page = 1, limit = 10) { return request<PostListResponse>(`/posts/?page=${page}&limit=${limit}`) }
 export function getPost(id: string) { return request<Post>(`/posts/${id}`) }
+
+// ✅ FIX: removed trailing slash from /posts/my/ → /posts/my
 export function getMyPosts(token: string, page = 1, limit = 10) {
-  return request<PostListResponse>(`/posts/my/?page=${page}&limit=${limit}`, "GET", undefined, token)
+  return request<PostListResponse>(`/posts/my?page=${page}&limit=${limit}`, "GET", undefined, token)
 }
 export function createPost(token: string, payload: PostCreatePayload) { return request<Post>("/posts/", "POST", payload, token) }
 export function updatePost(token: string, id: string, payload: Partial<PostCreatePayload>) { return request<Post>(`/posts/${id}`, "PUT", payload, token) }
