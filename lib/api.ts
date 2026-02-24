@@ -115,6 +115,7 @@ export type Post = {
   image_url: string | null; is_published: boolean; created_at: string; updated_at: string
   author_id: string; author: PostAuthor | null; category_id: string | null
   category?: { id: string; name: string; slug: string; icon: string | null } | null
+  upvote_count: number
 }
 export type PostListResponse = { posts: Post[]; total: number; page: number; limit: number }
 export type PostCreatePayload = {
@@ -125,13 +126,28 @@ export type PostCreatePayload = {
 export function getPosts(page = 1, limit = 10) { return request<PostListResponse>(`/posts/?page=${page}&limit=${limit}`) }
 export function getPost(id: string) { return request<Post>(`/posts/${id}`) }
 
-// ✅ FIX: removed trailing slash from /posts/my/ → /posts/my
 export function getMyPosts(token: string, page = 1, limit = 10) {
   return request<PostListResponse>(`/posts/my?page=${page}&limit=${limit}`, "GET", undefined, token)
 }
 export function createPost(token: string, payload: PostCreatePayload) { return request<Post>("/posts/", "POST", payload, token) }
 export function updatePost(token: string, id: string, payload: Partial<PostCreatePayload>) { return request<Post>(`/posts/${id}`, "PUT", payload, token) }
 export function deletePost(token: string, id: string) { return request<null>(`/posts/${id}`, "DELETE", undefined, token) }
+
+// -- Upvotes --
+export type UpvoteStatus = { upvote_count: number; is_upvoted: boolean }
+
+export function getUpvoteStatus(postId: string, token?: string) {
+  return request<UpvoteStatus>(
+    `/posts/${postId}/upvote`,
+    "GET",
+    undefined,
+    token,
+  )
+}
+
+export function toggleUpvote(token: string, postId: string) {
+  return request<UpvoteStatus>(`/posts/${postId}/upvote`, "POST", undefined, token)
+}
 
 // -- Comments --
 export type CommentAuthor = { username: string; avatar_url: string | null; real_name: string | null }

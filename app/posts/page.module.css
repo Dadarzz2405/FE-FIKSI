@@ -260,6 +260,7 @@
   margin-bottom: 0.8rem;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -289,8 +290,35 @@
   letter-spacing: 0.04em;
 }
 
-.deleteButton {
+/* ── Upvote chip on cards ── */
+.upvoteChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
   margin-left: auto;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  transition: color 180ms ease, border-color 180ms ease;
+  flex-shrink: 0;
+}
+
+.postCard:hover .upvoteChip {
+  color: #79c0ff;
+  border-color: rgba(88, 166, 255, 0.3);
+}
+
+.upvoteChipIcon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.deleteButton {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);

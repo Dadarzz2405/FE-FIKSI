@@ -9,6 +9,23 @@ import styles from "./page.module.css"
 
 const LIMIT = 10
 
+function UpArrowIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  )
+}
+
 export default function PostsPage() {
   const { user, token } = useAuth()
 
@@ -55,14 +72,13 @@ export default function PostsPage() {
   useEffect(() => {
     getCategories()
       .then((res) => setCategories(res.categories))
-      .catch(() => {/* non-critical */})
+      .catch(() => {})
   }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setImageFile(file)
-    // Generate local preview
     const reader = new FileReader()
     reader.onload = (ev) => setImagePreview(ev.target?.result as string)
     reader.readAsDataURL(file)
@@ -199,7 +215,6 @@ export default function PostsPage() {
               </select>
             </div>
 
-            {/* ── File upload (replaces URL input) ── */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Gambar (opsional)</label>
 
@@ -364,6 +379,13 @@ export default function PostsPage() {
                   {!post.is_published && (
                     <span className={styles.draftBadge}>DRAFT</span>
                   )}
+
+                  {/* Upvote count chip */}
+                  <span className={styles.upvoteChip}>
+                    <UpArrowIcon className={styles.upvoteChipIcon} />
+                    {post.upvote_count}
+                  </span>
+
                   {user && post.author_id === user.id && (
                     <button
                       type="button"

@@ -4,7 +4,11 @@ import { useEffect, useState, FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { getPost, deletePost, getComments, createComment, acceptComment, deleteComment, Post, Comment } from "@/lib/api"
+import {
+  getPost, deletePost, getComments, createComment,
+  acceptComment, deleteComment, getUpvoteStatus, toggleUpvote,
+  Post, Comment,
+} from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./post.module.css"
 
@@ -19,6 +23,11 @@ export default function PostDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Upvote state
+  const [upvoteCount, setUpvoteCount] = useState(0)
+  const [isUpvoted, setIsUpvoted] = useState(false)
+  const [upvoting, setUpvoting] = useState(false)
+
   const [comments, setComments] = useState<Comment[]>([])
   const [commentsLoading, setCommentsLoading] = useState(true)
   const [commentText, setCommentText] = useState("")
@@ -32,6 +41,7 @@ export default function PostDetailPage() {
       try {
         const res = await getPost(postId)
         setPost(res)
+        setUpvoteCount(res.upvote_count ?? 0)
       } catch {
         setError("Postingan tidak ditemukan.")
       } finally {
@@ -41,13 +51,38 @@ export default function PostDetailPage() {
     fetchPost()
   }, [postId])
 
+  // Fetch is_upvoted state after we know the user
+  useEffect(() => {
+    if (!postId) return
+    getUpvoteStatus(postId, token ?? undefined)
+      .then((res) => {
+        setUpvoteCount(res.upvote_count)
+        setIsUpvoted(res.is_upvoted)
+      })
+      .catch(() => {})
+  }, [postId, token])
+
   useEffect(() => {
     if (!postId) return
     getComments(postId)
       .then(setComments)
-      .catch(() => {/* non-critical */})
+      .catch(() => {})
       .finally(() => setCommentsLoading(false))
   }, [postId])
+
+  async function handleUpvote() {
+    if (!token) return
+    setUpvoting(true)
+    try {
+      const res = await toggleUpvote(token, postId)
+      setUpvoteCount(res.upvote_count)
+      setIsUpvoted(res.is_upvoted)
+    } catch {
+      // silent fail
+    } finally {
+      setUpvoting(false)
+    }
+  }
 
   async function handleDelete() {
     if (!token || !post) return
@@ -140,7 +175,6 @@ export default function PostDetailPage() {
         )}
 
         <div className={styles.body}>
-          {/* Category badge */}
           {post.category && (
             <Link href={`/categories/${post.category.slug}`} className={styles.categoryBadge}>
               {post.category.icon && <span>{post.category.icon}</span>}
@@ -176,6 +210,55 @@ export default function PostDetailPage() {
           <div className={styles.content}>
             {post.content.split("\n").map((paragraph, i) =>
               paragraph.trim() ? <p key={i}>{paragraph}</p> : <br key={i} />
+            )}
+          </div>
+
+          {/* ── Upvote button ── */}
+          <div className={styles.upvoteRow}>
+            {token ? (
+              <button
+                type="button"
+                className={`${styles.upvoteButton} ${isUpvoted ? styles.upvoted : ""}`}
+                onClick={handleUpvote}
+                disabled={upvoting}
+                title={isUpvoted ? "Batalkan upvote" : "Upvote pertanyaan ini"}
+              >
+                <svg
+                  className={styles.upvoteIcon}
+                  viewBox="0 0 24 24"
+                  fill={isUpvoted ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                <span className={styles.upvoteLabel}>
+                  {isUpvoted ? "Diupvote" : "Upvote"}
+                </span>
+                <span className={styles.upvoteCount}>{upvoteCount}</span>
+              </button>
+            ) : (
+              <div className={styles.upvoteStatic}>
+                <svg
+                  className={styles.upvoteIcon}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                <span className={styles.upvoteCount}>{upvoteCount}</span>
+                <Link href="/login" className={styles.upvoteLoginHint}>
+                  Masuk untuk upvote
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -225,7 +308,6 @@ export default function PostDetailPage() {
                   </time>
 
                   <div className={styles.commentActions}>
-                    {/* Post owner can accept */}
                     {isOwner && !comment.is_accepted && (
                       <button
                         type="button"
@@ -235,7 +317,6 @@ export default function PostDetailPage() {
                         ✓ Terima Jawaban
                       </button>
                     )}
-                    {/* Comment owner can delete */}
                     {user && comment.author_id === user.id && (
                       <button
                         type="button"
@@ -253,7 +334,6 @@ export default function PostDetailPage() {
           </div>
         )}
 
-        {/* Answer form */}
         {user ? (
           <form onSubmit={handleCommentSubmit} className={styles.commentForm}>
             <h3 className={styles.commentFormTitle}>Tulis Jawaban</h3>
