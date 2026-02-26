@@ -1,4 +1,9 @@
 "use client"
+/**
+ * File: app/posts/page.tsx
+ * Purpose: Posts listing and creation UI.
+ * Notes: manages pagination, file upload preview, create/delete handlers.
+ */
 
 import { useEffect, useState, FormEvent, useRef } from "react"
 import Image from "next/image"
@@ -383,7 +388,7 @@ export default function PostsPage() {
                   {/* Upvote count chip */}
                   <span className={styles.upvoteChip}>
                     <UpArrowIcon className={styles.upvoteChipIcon} />
-                    {post.upvote_count}
+                    {post.upvote_count ?? 0}
                   </span>
 
                   {user && post.author_id === user.id && (

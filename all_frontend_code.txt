@@ -1,0 +1,3217 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { getMe } from "@/lib/api"
+
+type Status = "loading" | "redirecting" | "success" | "error"
+
+function getInitialFromHash(): { status: Status; message: string } {
+  if (typeof window === "undefined") {
+    return { status: "loading", message: "" }
+  }
+  const hash = window.location.hash?.slice(1) || ""
+  const params = new URLSearchParams(hash)
+  const error = params.get("error")
+  const errorDescription = params.get("error_description")
+  const accessToken = params.get("access_token")
+
+  if (error) {
+    const message =
+      params.get("error_code") === "otp_expired" || error === "access_denied"
+        ? "Tautan verifikasi tidak valid atau sudah kadaluarsa. Ini sering terjadi karena email client membuka link otomatis. Silakan coba masuk; jika belum bisa, daftar ulang atau minta kirim ulang email verifikasi dari Supabase."
+        : errorDescription || "Verifikasi gagal. Silakan coba lagi."
+    return { status: "error", message }
+  }
+
+  if (accessToken) {
+    return { status: "loading", message: "" }
+  }
+
+  return { status: "success", message: "Email berhasil diverifikasi. Silakan masuk." }
+}
+
+export default function AuthCallbackPage() {
+  const router = useRouter()
+  const [state, setState] = useState<{ status: Status; message: string }>(getInitialFromHash)
+
+  useEffect(() => {
+    const hash = window.location.hash?.slice(1) || ""
+    const params = new URLSearchParams(hash)
+    const accessToken = params.get("access_token")
+    if (!accessToken) return
+
+    // Store token immediately so useAuth picks it up
+    localStorage.setItem("access_token", accessToken)
+    window.dispatchEvent(new Event("auth-changed"))
+
+    // Defer UI update to avoid synchronous setState in effect (satisfies react-hooks/set-state-in-effect)
+    queueMicrotask(() => {
+      setState({ status: "redirecting", message: "Email berhasil diverifikasi! Mengalihkan ke profil Anda..." })
+    })
+
+    getMe(accessToken)
+      .then((user) => {
+        router.replace(`/profile/${user.username}`)
+      })
+      .catch(() => {
+        router.replace("/")
+      })
+  }, [router])
+
+  const containerStyle: React.CSSProperties = {
+    minHeight: "100vh",
+    display: "grid",
+    placeItems: "center",
+    padding: "2rem",
+    background: "#0d1117",
+    color: "#e6edf3",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  }
+
+  const cardStyle: React.CSSProperties = {
+    maxWidth: "440px",
+    width: "100%",
+    background: "#161b22",
+    border: "1px solid #30363d",
+    borderRadius: "14px",
+    padding: "2rem",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    alignItems: "center",
+  }
+
+  const spinnerStyle: React.CSSProperties = {
+    width: "36px",
+    height: "36px",
+    border: "3px solid rgba(88,166,255,0.2)",
+    borderTop: "3px solid #58a6ff",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+  }
+
+  return (
+    <div style={containerStyle}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={cardStyle}>
+        {(state.status === "loading" || state.status === "redirecting") && (
+          <>
+            <div style={spinnerStyle} />
+            <p style={{ color: "#8b949e", fontSize: "0.95rem" }}>
+              {state.status === "loading" ? "Memverifikasi..." : state.message}
+            </p>
+          </>
+        )}
+
+        {state.status === "success" && (
+          <>
+            <div style={{ fontSize: "2.5rem" }}>✅</div>
+            <p style={{ color: "#7ee787" }}>{state.message}</p>
+            <Link
+              href="/login"
+              style={{
+                display: "inline-block",
+                marginTop: "0.5rem",
+                padding: "0.55rem 1.25rem",
+                background: "#1f6feb",
+                border: "1px solid #388bfd",
+                borderRadius: "8px",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: "0.9rem",
+                textDecoration: "none",
+              }}
+            >
+              Ke halaman masuk
+            </Link>
+          </>
+        )}
+
+        {state.status === "error" && (
+          <>
+            <div style={{ fontSize: "2.5rem" }}>⚠️</div>
+            <p
+              style={{
+                color: "#ffb8b3",
+                fontSize: "0.875rem",
+                lineHeight: "1.6",
+                background: "rgba(248,81,73,0.1)",
+                border: "1px solid rgba(248,81,73,0.4)",
+                borderRadius: "8px",
+                padding: "0.75rem",
+              }}
+            >
+              {state.message}
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", justifyContent: "center" }}>
+              <Link
+                href="/login"
+                style={{
+                  padding: "0.5rem 1rem",
+                  background: "#1f6feb",
+                  border: "1px solid #388bfd",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  textDecoration: "none",
+                }}
+              >
+                Coba masuk
+              </Link>
+              <Link
+                href="/signup"
+                style={{
+                  padding: "0.5rem 1rem",
+                  background: "transparent",
+                  border: "1px solid #30363d",
+                  borderRadius: "8px",
+                  color: "#8b949e",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  textDecoration: "none",
+                }}
+              >
+                Daftar ulang
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { getPostsByCategory } from "@/lib/api"
+import styles from "../categories.module.css"
+import postStyles from "../../posts/page.module.css"
+
+type CategoryPost = {
+  id: string
+  title: string
+  excerpt: string | null
+  image_url: string | null
+  created_at: string
+  author: { username: string; avatar_url: string | null } | null
+}
+
+type PageData = {
+  category: { id: string; name: string; slug: string; icon: string | null }
+  posts: CategoryPost[]
+  total: number
+  page: number
+}
+
+export default function CategoryDetailPage() {
+  const params = useParams()
+  const slug = params?.slug as string
+  const [data, setData] = useState<PageData | null>(null)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!slug) return
+    let cancelled = false
+    queueMicrotask(() => setLoading(true))
+    getPostsByCategory(slug, page)
+      .then((res) => {
+        if (!cancelled) setData(res as PageData)
+      })
+      .catch(() => {
+        if (!cancelled) setError("Gagal memuat postingan.")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slug, page])
+
+  const LIMIT = 10
+  const totalPages = data ? Math.ceil(data.total / LIMIT) : 1
+
+  if (loading) return (
+    <main className={styles.page}>
+      <p className={styles.loadingState}>Memuat...</p>
+    </main>
+  )
+
+  if (error || !data) return (
+    <main className={styles.page}>
+      <p className={styles.errorState}>{error || "Kategori tidak ditemukan."}</p>
+      <Link href="/categories" style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>← Semua Kategori</Link>
+    </main>
+  )
+
+  return (
+    <main className={styles.page}>
+      <div>
+        <Link href="/categories" style={{ fontSize: "0.8rem", color: "var(--text-secondary)", textDecoration: "none" }}>
+          ← Semua Kategori
+        </Link>
+        <div className={styles.header} style={{ marginTop: "0.75rem" }}>
+          <h1 className={styles.title}>
+            {data.category.icon && <span style={{ marginRight: "0.5rem" }}>{data.category.icon}</span>}
+            {data.category.name}
+          </h1>
+          <p className={styles.subtitle}>{data.total} pertanyaan</p>
+        </div>
+      </div>
+
+      {data.posts.length === 0 ? (
+        <div className={postStyles.emptyState}>
+          <p>Belum ada pertanyaan di kategori ini.</p>
+          <p style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+            <Link href="/posts">Buat pertanyaan pertama →</Link>
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+          {data.posts.map((post) => (
+            <Link key={post.id} href={`/posts/${post.id}`} className={postStyles.postCard}>
+              <h3 className={postStyles.postTitle}>{post.title}</h3>
+              {post.excerpt && <p className={postStyles.postExcerpt}>{post.excerpt}</p>}
+              <div className={postStyles.postMeta}>
+                {post.author && (
+                  <>
+                    <span className={postStyles.postAuthor}>@{post.author.username}</span>
+                    <span>·</span>
+                  </>
+                )}
+                <span>
+                  {new Date(post.created_at).toLocaleDateString("id-ID", {
+                    day: "numeric", month: "short", year: "numeric",
+                  })}
+                </span>
+              </div>
+            </Link>
+          ))}
+
+          {totalPages > 1 && (
+            <div className={postStyles.pagination}>
+              <button
+                type="button"
+                className={postStyles.pageButton}
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 1}
+              >← Sebelumnya</button>
+              <span className={postStyles.pageInfo}>Halaman {page} dari {totalPages}</span>
+              <button
+                type="button"
+                className={postStyles.pageButton}
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page === totalPages}
+              >Berikutnya →</button>
+            </div>
+          )}
+        </div>
+      )}
+    </main>
+  )
+}
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { getCategories, Category } from "@/lib/api"
+import styles from "./categories.module.css"
+
+export default function CategoriesPage() {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getCategories()
+      .then((res) => setCategories(res.categories))
+      .catch(() => setError("Gagal memuat kategori."))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <main className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Kategori</h1>
+        <p className={styles.subtitle}>Temukan pertanyaan berdasarkan mata pelajaran</p>
+      </div>
+
+      {loading && <p className={styles.loadingState}>Memuat kategori...</p>}
+      {error && <p className={styles.errorState}>{error}</p>}
+
+      {!loading && !error && (
+        <div className={styles.grid}>
+          {categories.map((cat) => (
+            <Link key={cat.id} href={`/categories/${cat.slug}`} className={styles.card}>
+              <span className={styles.icon}>{cat.icon || "📌"}</span>
+              <div className={styles.info}>
+                <strong className={styles.name}>{cat.name}</strong>
+                {cat.description && (
+                  <p className={styles.desc}>{cat.description}</p>
+                )}
+                <span className={styles.count}>{cat.post_count} pertanyaan</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </main>
+  )
+}
+"use client"
+
+import "./globals.css"
+import Navbar from "@/components/Navbar"
+import Sidebar from "@/components/Sidebar"
+import { usePathname } from "next/navigation"
+
+// Auth routes that should NOT have Navbar/Sidebar
+const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"]
+
+function LayoutShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isAuthPage = AUTH_ROUTES.some((route) => pathname.startsWith(route))
+
+  if (isAuthPage) {
+    return <>{children}</>
+  }
+
+  return (
+    <>
+      <Navbar />
+      <div className="appShell">
+        <Sidebar />
+        <main className="appMain">
+          {children}
+        </main>
+      </div>
+    </>
+  )
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="id">
+      <body className="appBody">
+        <LayoutShell>{children}</LayoutShell>
+      </body>
+    </html>
+  )
+}
+"use client"
+import { useEffect, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { getLeaderboard, type LeaderboardEntry } from "@/lib/api"
+import RankBadge from "@/components/RankBadge"
+
+type SortKey = "reputation" | "xp_total" | "cp_total" | "level"
+
+const TABS: { key: SortKey; label: string; icon: string; accent: string }[] = [
+  { key: "reputation", label: "Reputasi",  icon: "⭐", accent: "#3fb950" },
+  { key: "cp_total",   label: "CP",        icon: "🏆", accent: "#f78166" },
+  { key: "xp_total",   label: "Total XP",  icon: "✨", accent: "#4facfe" },
+  { key: "level",      label: "Level",     icon: "🔮", accent: "#d2a8ff" },
+]
+
+const MEDAL = ["🥇", "🥈", "🥉"]
+const PODIUM_H   = [110, 80, 60]
+const PODIUM_CLR = ["rgba(230,180,0,0.25)", "rgba(192,192,210,0.18)", "rgba(180,120,60,0.18)"]
+const PODIUM_BDR = ["rgba(230,180,0,0.5)",  "rgba(192,192,210,0.4)",  "rgba(180,120,60,0.4)"]
+
+function Avatar({ entry, size }: { entry: LeaderboardEntry; size: number }) {
+  return entry.avatar_url ? (
+    <Image src={entry.avatar_url} alt={entry.username} width={size} height={size}
+      style={{ borderRadius: "50%", objectFit: "cover", display: "block" }} />
+  ) : (
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: "linear-gradient(135deg, #4facfe, #1a6cff)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", fontWeight: 800,
+      fontSize: size * 0.38,
+    }}>
+      {entry.username.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
+function Podium({ entries, sortKey }: { entries: LeaderboardEntry[]; sortKey: SortKey }) {
+  // Reorder to [2nd, 1st, 3rd]
+  const order = [entries[1], entries[0], entries[2]].filter(Boolean)
+
+  const val = (e: LeaderboardEntry) =>
+    sortKey === "reputation" ? e.reputation
+    : sortKey === "cp_total"   ? e.cp_total
+    : sortKey === "xp_total"   ? e.xp_total
+    : e.level
+
+  const suffix = sortKey === "level" ? "" : sortKey === "cp_total" ? " CP" : sortKey === "xp_total" ? " XP" : " REP"
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-end", justifyContent: "center",
+      gap: "0.75rem", padding: "1.5rem 1rem 0",
+    }}>
+      {order.map((entry) => {
+        const realPos = entry.rank_position - 1 // 0-indexed original position
+        const height  = PODIUM_H[realPos]
+        const isFirst = entry.rank_position === 1
+        const avatarSz = isFirst ? 64 : 52
+
+        return (
+          <Link
+            key={entry.user_id} href={`/profile/${entry.username}`}
+            style={{ textDecoration: "none", color: "inherit",
+              flex: 1, maxWidth: 150, display: "flex",
+              flexDirection: "column", alignItems: "center", gap: "0.4rem" }}
+          >
+            {isFirst && (
+              <span style={{ fontSize: "1.6rem", lineHeight: 1 }}>👑</span>
+            )}
+
+            <div style={{ position: "relative" }}>
+              <div style={{
+                padding: 3, borderRadius: "50%",
+                background: PODIUM_BDR[realPos],
+                boxShadow: isFirst ? `0 0 20px rgba(230,180,0,0.35)` : "none",
+              }}>
+                <Avatar entry={entry} size={avatarSz} />
+              </div>
+              <span style={{
+                position: "absolute", bottom: -2, right: -2,
+                fontSize: "1rem", lineHeight: 1,
+                filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.6))",
+              }}>
+                {MEDAL[realPos]}
+              </span>
+            </div>
+
+            <span style={{
+              fontSize: "0.8rem", fontWeight: 700, color: "#c8d8f0",
+              textAlign: "center", wordBreak: "break-word",
+            }}>
+              @{entry.username}
+            </span>
+            <RankBadge rank={{ name: entry.rank_name, icon: entry.rank_icon }} size="xs" animated />
+
+            {/* Podium block */}
+            <div style={{
+              width: "100%", height,
+              background: PODIUM_CLR[realPos],
+              border: `1px solid ${PODIUM_BDR[realPos]}`,
+              borderRadius: "8px 8px 0 0",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 2,
+            }}>
+              <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#e8f0ff" }}>
+                {val(entry).toLocaleString()}{suffix}
+              </span>
+              <span style={{ fontSize: "0.62rem", color: "#4a5a78" }}>
+                Lv.{entry.level}
+              </span>
+            </div>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function LeaderboardPage() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sortKey, setSortKey] = useState<SortKey>("reputation")
+
+  useEffect(() => {
+    getLeaderboard(sortKey)
+      .then(setEntries)
+      .catch(() => setEntries([]))
+      .finally(() => setLoading(false))
+  }, [sortKey])
+
+  const top3    = entries.slice(0, 3)
+  const theRest = entries.slice(3)
+  const tab     = TABS.find(t => t.key === sortKey)!
+
+  const valLabel = sortKey === "level" ? (e: LeaderboardEntry) => `Lv. ${e.level}`
+    : sortKey === "cp_total"   ? (e: LeaderboardEntry) => `${e.cp_total.toLocaleString()} CP`
+    : sortKey === "xp_total"   ? (e: LeaderboardEntry) => `${e.xp_total.toLocaleString()} XP`
+    : (e: LeaderboardEntry) => `${e.reputation.toLocaleString()} REP`
+
+  return (
+    <main style={{
+      maxWidth: 720, margin: "0 auto",
+      padding: "clamp(1rem, 2vw, 1.5rem)",
+      display: "flex", flexDirection: "column", gap: "1.25rem",
+      animation: "pgIn 350ms ease",
+    }}>
+      <style>{`
+        @keyframes pgIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+        @keyframes rowIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:none; } }
+        .lb-row:hover { background: #111c2a !important; }
+      `}</style>
+
+      {/* Title */}
+      <div>
+        <h1 style={{ fontSize: "clamp(1.4rem, 2.2vw, 1.9rem)", fontWeight: 800,
+          letterSpacing: "-0.03em", color: "#e8f0ff", margin: 0 }}>
+          Papan Peringkat
+        </h1>
+        <p style={{ color: "#4a5a78", fontSize: "0.88rem", marginTop: "0.25rem" }}>
+          Pengguna paling berdedikasi di Nusa CoNex
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        {TABS.map(t => (
+          <button
+            key={t.key} type="button" onClick={() => {
+              if (sortKey === t.key) return
+              setLoading(true)
+              setSortKey(t.key)
+            }}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.35rem",
+              padding: "0.4rem 0.85rem", borderRadius: 8, border: "1px solid",
+              fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
+              transition: "all 160ms ease",
+              background: sortKey === t.key ? `${t.accent}18` : "transparent",
+              borderColor: sortKey === t.key ? `${t.accent}55` : "#1a2535",
+              color: sortKey === t.key ? t.accent : "#4a5a78",
+            }}
+          >
+            <span>{t.icon}</span> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{
+          height: 200, display: "flex", alignItems: "center", justifyContent: "center",
+          border: "1px dashed #1a2535", borderRadius: 14, color: "#4a5a78",
+        }}>
+          <div style={{ width: 24, height: 24, borderRadius: "50%",
+            border: "2px solid #1a2535", borderTopColor: tab.accent,
+            animation: "spin 700ms linear infinite" }} />
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      ) : entries.length === 0 ? (
+        <div style={{
+          height: 180, display: "flex", alignItems: "center", justifyContent: "center",
+          border: "1px dashed #1a2535", borderRadius: 14, color: "#4a5a78",
+          fontSize: "0.9rem",
+        }}>
+          Belum ada data peringkat.
+        </div>
+      ) : (
+        <>
+          {/* Podium */}
+          {top3.length >= 2 && (
+            <div style={{
+              background: "linear-gradient(160deg, #0f1825, #0a1020)",
+              border: "1px solid #1a2535", borderRadius: 14, overflow: "hidden",
+            }}>
+              <Podium entries={top3} sortKey={sortKey} />
+            </div>
+          )}
+
+          {/* Rest of list */}
+          <div style={{
+            background: "linear-gradient(160deg, #0f1825, #0a1020)",
+            border: "1px solid #1a2535", borderRadius: 14, overflow: "hidden",
+          }}>
+            {theRest.map((entry, i) => (
+              <Link
+                key={entry.user_id} href={`/profile/${entry.username}`}
+                className="lb-row"
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.85rem",
+                  padding: "0.85rem 1.1rem",
+                  borderBottom: i < theRest.length - 1 ? "1px solid #111820" : "none",
+                  textDecoration: "none", color: "inherit",
+                  transition: "background 160ms ease",
+                  animation: `rowIn ${180 + i * 35}ms ease both`,
+                }}
+              >
+                {/* Position */}
+                <span style={{ width: 28, textAlign: "center", flexShrink: 0,
+                  fontSize: "0.82rem", fontWeight: 700, color: "#2a3a52" }}>
+                  #{entry.rank_position}
+                </span>
+
+                {/* Avatar */}
+                <div style={{ flexShrink: 0 }}>
+                  <Avatar entry={entry} size={36} />
+                </div>
+
+                {/* Name + badge */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center",
+                    gap: "0.45rem", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#c8d8f0" }}>
+                      @{entry.username}
+                    </span>
+                    <RankBadge rank={{ name: entry.rank_name, icon: entry.rank_icon }}
+                      size="xs" animated />
+                  </div>
+                  {entry.real_name && (
+                    <span style={{ fontSize: "0.75rem", color: "#3a4a62" }}>
+                      {entry.real_name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Score */}
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: "0.88rem", fontWeight: 800,
+                    color: tab.accent }}>
+                    {valLabel(entry)}
+                  </div>
+                  <div style={{ fontSize: "0.7rem", color: "#3a4a62" }}>
+                    Lv. {entry.level}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+    </main>
+  )
+}
+"use client"
+
+import AuthSplit from "@/components/AuthSplit"
+import "./login.css"
+
+export default function LoginPage() {
+  return <AuthSplit initialMode="login" />
+}
+"use client"
+
+import { useEffect, useState } from "react"
+import Image from "next/image"
+import { getHomepage } from "@/lib/api"
+import styles from "./page.module.css"
+
+type Post = {
+  id: string
+  title: string
+  description?: string
+  author?: string
+  created_at: string
+  image_url?: string
+}
+
+type HomepageData = {
+  status: string
+  latest_post?: Post
+  popular_posts: Post[]
+}
+
+export default function HomePage() {
+  const [data, setData] = useState<HomepageData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await getHomepage()
+        setData(res)
+      } catch {
+        setError("Gagal memuat data beranda.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <main className={styles.page}>
+        <p className={styles.loadingState}>Memuat beranda...</p>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main className={styles.page}>
+        <p className={styles.errorState}>{error}</p>
+      </main>
+    )
+  }
+
+  if (!data) return null
+
+  return (
+    <main className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Beranda</h1>
+        <div className={styles.status}>
+          {data.status}
+        </div>
+      </div>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Postingan Terbaru</h2>
+
+        {data.latest_post ? (
+          <article className={`${styles.card} ${styles.latestCard}`}>
+            {data.latest_post.image_url && (
+              <Image
+                src={data.latest_post.image_url}
+                alt={data.latest_post.title}
+                width={0}
+                height={0}
+                sizes="100vw"
+                unoptimized
+                className={styles.postImage}
+              />
+            )}
+
+            <h3 className={styles.postTitle}>{data.latest_post.title}</h3>
+
+            {data.latest_post.description && (
+              <p className={styles.postDescription}>
+                {data.latest_post.description}
+              </p>
+            )}
+
+            <div className={styles.meta}>
+              {data.latest_post.author && (
+                <>
+                  <span className={styles.author}>{data.latest_post.author}</span>
+                  <span>•</span>
+                </>
+              )}
+              <span>
+                {new Date(data.latest_post.created_at).toLocaleString("id-ID")}
+              </span>
+            </div>
+          </article>
+        ) : (
+          <p className={styles.emptyState}>Belum ada postingan terbaru.</p>
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Postingan Populer</h2>
+
+        {data.popular_posts.length > 0 ? (
+          <div className={styles.list}>
+            {data.popular_posts.map((post) => (
+              <article key={post.id} className={styles.card}>
+                {post.image_url && (
+                  <Image
+                    src={post.image_url}
+                    alt={post.title}
+                    width={0}
+                    height={0}
+                    sizes="100vw"
+                    unoptimized
+                    className={styles.popularImage}
+                  />
+                )}
+
+                <h3 className={styles.postTitle}>{post.title}</h3>
+
+                {post.description && (
+                  <p className={styles.postDescription}>
+                    {post.description}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.emptyState}>Belum ada postingan populer.</p>
+        )}
+      </section>
+    </main>
+  )
+}
+"use client"
+
+import { useEffect, useState, FormEvent } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
+import {
+  getPost, deletePost, getComments, createComment,
+  acceptComment, deleteComment, getUpvoteStatus, toggleUpvote,
+  Post, Comment,
+} from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+import styles from "./post.module.css"
+
+export default function PostDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const { user, token } = useAuth()
+  const postId = params?.id as string
+
+  const [post, setPost] = useState<Post | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // Upvote state
+  const [upvoteCount, setUpvoteCount] = useState(0)
+  const [isUpvoted, setIsUpvoted] = useState(false)
+  const [upvoting, setUpvoting] = useState(false)
+
+  const [comments, setComments] = useState<Comment[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(true)
+  const [commentText, setCommentText] = useState("")
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!postId) return
+    async function fetchPost() {
+      try {
+        const res = await getPost(postId)
+        setPost(res)
+        setUpvoteCount(res.upvote_count ?? 0)
+      } catch {
+        setError("Postingan tidak ditemukan.")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPost()
+  }, [postId])
+
+  // Fetch is_upvoted state after we know the user
+  useEffect(() => {
+    if (!postId) return
+    getUpvoteStatus(postId, token ?? undefined)
+      .then((res) => {
+        setUpvoteCount(res.upvote_count)
+        setIsUpvoted(res.is_upvoted)
+      })
+      .catch(() => {})
+  }, [postId, token])
+
+  useEffect(() => {
+    if (!postId) return
+    getComments(postId)
+      .then(setComments)
+      .catch(() => {})
+      .finally(() => setCommentsLoading(false))
+  }, [postId])
+
+  async function handleUpvote() {
+    if (!token) return
+    setUpvoting(true)
+    try {
+      const res = await toggleUpvote(token, postId)
+      setUpvoteCount(res.upvote_count)
+      setIsUpvoted(res.is_upvoted)
+    } catch {
+      // silent fail
+    } finally {
+      setUpvoting(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!token || !post) return
+    if (!confirm("Hapus postingan ini secara permanen?")) return
+    setDeleting(true)
+    try {
+      await deletePost(token, post.id)
+      router.push("/posts")
+    } catch {
+      alert("Gagal menghapus postingan.")
+      setDeleting(false)
+    }
+  }
+
+  async function handleCommentSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!token || !post) return
+    setCommentError(null)
+    setSubmittingComment(true)
+    try {
+      const newComment = await createComment(token, post.id, commentText.trim())
+      setComments((prev) => [...prev, newComment])
+      setCommentText("")
+    } catch (err) {
+      setCommentError(err instanceof Error ? err.message : "Gagal mengirim jawaban.")
+    } finally {
+      setSubmittingComment(false)
+    }
+  }
+
+  async function handleAccept(commentId: string) {
+    if (!token) return
+    try {
+      const updated = await acceptComment(token, commentId)
+      setComments((prev) =>
+        prev.map((c) => ({ ...c, is_accepted: c.id === updated.id }))
+      )
+    } catch {
+      alert("Gagal menerima jawaban.")
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    if (!token) return
+    if (!confirm("Hapus jawaban ini?")) return
+    setDeletingCommentId(commentId)
+    try {
+      await deleteComment(token, commentId)
+      setComments((prev) => prev.filter((c) => c.id !== commentId))
+    } catch {
+      alert("Gagal menghapus jawaban.")
+    } finally {
+      setDeletingCommentId(null)
+    }
+  }
+
+  if (loading) return (
+    <main className={styles.page}>
+      <p className={styles.loading}>Memuat postingan...</p>
+    </main>
+  )
+
+  if (error || !post) return (
+    <main className={styles.page}>
+      <p className={styles.error}>{error || "Postingan tidak ditemukan."}</p>
+      <Link href="/posts" className={styles.back}>← Kembali ke Pertanyaan</Link>
+    </main>
+  )
+
+  const isOwner = user && post.author_id === user.id
+
+  return (
+    <main className={styles.page}>
+      <div className={styles.topBar}>
+        <Link href="/posts" className={styles.back}>← Semua Pertanyaan</Link>
+        {isOwner && (
+          <button type="button" className={styles.deleteButton} onClick={handleDelete} disabled={deleting}>
+            {deleting ? "Menghapus..." : "Hapus Postingan"}
+          </button>
+        )}
+      </div>
+
+      <article className={styles.article}>
+        {post.image_url && (
+          <Image
+            src={post.image_url} alt={post.title}
+            width={0} height={0} sizes="100vw" unoptimized
+            className={styles.image}
+          />
+        )}
+
+        <div className={styles.body}>
+          {post.category && (
+            <Link href={`/categories/${post.category.slug}`} className={styles.categoryBadge}>
+              {post.category.icon && <span>{post.category.icon}</span>}
+              {post.category.name}
+            </Link>
+          )}
+
+          <h1 className={styles.title}>{post.title}</h1>
+
+          <div className={styles.meta}>
+            {post.author && (
+              <Link href={`/profile/${post.author.username}`} className={styles.authorLink}>
+                {post.author.avatar_url ? (
+                  <Image src={post.author.avatar_url} alt={post.author.username} width={24} height={24} className={styles.avatar} />
+                ) : (
+                  <span className={styles.avatarFallback}>{post.author.username.charAt(0).toUpperCase()}</span>
+                )}
+                <span>@{post.author.username}</span>
+                {post.author.real_name && (
+                  <span className={styles.realName}>({post.author.real_name})</span>
+                )}
+              </Link>
+            )}
+            <span className={styles.dot}>·</span>
+            <time dateTime={post.created_at}>
+              {new Date(post.created_at).toLocaleDateString("id-ID", {
+                day: "numeric", month: "long", year: "numeric",
+              })}
+            </time>
+            {!post.is_published && <span className={styles.draftBadge}>DRAFT</span>}
+          </div>
+
+          <div className={styles.content}>
+            {post.content.split("\n").map((paragraph, i) =>
+              paragraph.trim() ? <p key={i}>{paragraph}</p> : <br key={i} />
+            )}
+          </div>
+
+          {/* ── Upvote button ── */}
+          <div className={styles.upvoteRow}>
+            {token ? (
+              <button
+                type="button"
+                className={`${styles.upvoteButton} ${isUpvoted ? styles.upvoted : ""}`}
+                onClick={handleUpvote}
+                disabled={upvoting}
+                title={isUpvoted ? "Batalkan upvote" : "Upvote pertanyaan ini"}
+              >
+                <svg
+                  className={styles.upvoteIcon}
+                  viewBox="0 0 24 24"
+                  fill={isUpvoted ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                <span className={styles.upvoteLabel}>
+                  {isUpvoted ? "Diupvote" : "Upvote"}
+                </span>
+                <span className={styles.upvoteCount}>{upvoteCount}</span>
+              </button>
+            ) : (
+              <div className={styles.upvoteStatic}>
+                <svg
+                  className={styles.upvoteIcon}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                <span className={styles.upvoteCount}>{upvoteCount}</span>
+                <Link href="/login" className={styles.upvoteLoginHint}>
+                  Masuk untuk upvote
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </article>
+
+      {/* ── Comments / Answers Section ── */}
+      <section className={styles.commentsSection}>
+        <h2 className={styles.commentsTitle}>
+          {comments.length} Jawaban
+        </h2>
+
+        {commentsLoading ? (
+          <p className={styles.commentsLoading}>Memuat jawaban...</p>
+        ) : comments.length === 0 ? (
+          <p className={styles.commentsEmpty}>Belum ada jawaban. Jadilah yang pertama!</p>
+        ) : (
+          <div className={styles.commentsList}>
+            {comments.map((comment) => (
+              <div
+                key={comment.id}
+                className={`${styles.commentCard} ${comment.is_accepted ? styles.accepted : ""}`}
+              >
+                {comment.is_accepted && (
+                  <div className={styles.acceptedBadge}>✅ Jawaban Terbaik</div>
+                )}
+
+                <div className={styles.commentContent}>{comment.content}</div>
+
+                <div className={styles.commentMeta}>
+                  {comment.author ? (
+                    <Link href={`/profile/${comment.author.username}`} className={styles.commentAuthor}>
+                      {comment.author.avatar_url ? (
+                        <Image src={comment.author.avatar_url} alt={comment.author.username} width={20} height={20} className={styles.commentAvatar} />
+                      ) : (
+                        <span className={styles.commentAvatarFallback}>
+                          {comment.author.username.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                      @{comment.author.username}
+                    </Link>
+                  ) : null}
+                  <span className={styles.dot}>·</span>
+                  <time>
+                    {new Date(comment.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric", month: "short", year: "numeric",
+                    })}
+                  </time>
+
+                  <div className={styles.commentActions}>
+                    {isOwner && !comment.is_accepted && (
+                      <button
+                        type="button"
+                        className={styles.acceptButton}
+                        onClick={() => handleAccept(comment.id)}
+                      >
+                        ✓ Terima Jawaban
+                      </button>
+                    )}
+                    {user && comment.author_id === user.id && (
+                      <button
+                        type="button"
+                        className={styles.deleteCommentButton}
+                        onClick={() => handleDeleteComment(comment.id)}
+                        disabled={deletingCommentId === comment.id}
+                      >
+                        {deletingCommentId === comment.id ? "..." : "Hapus"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {user ? (
+          <form onSubmit={handleCommentSubmit} className={styles.commentForm}>
+            <h3 className={styles.commentFormTitle}>Tulis Jawaban</h3>
+            {commentError && <div className={styles.commentError}>{commentError}</div>}
+            <textarea
+              className={styles.commentTextarea}
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Tulis jawabanmu di sini..."
+              required
+              disabled={submittingComment}
+              rows={4}
+            />
+            <button type="submit" className={styles.commentSubmit} disabled={submittingComment || !commentText.trim()}>
+              {submittingComment ? "Mengirim..." : "Kirim Jawaban"}
+            </button>
+          </form>
+        ) : (
+          <div className={styles.loginPrompt}>
+            <Link href="/login">Masuk</Link> untuk menulis jawaban.
+          </div>
+        )}
+      </section>
+    </main>
+  )
+}"use client"
+/**
+ * File: app/posts/page.tsx
+ * Purpose: Posts listing and creation UI.
+ * Notes: manages pagination, file upload preview, create/delete handlers.
+ */
+
+import { useEffect, useState, FormEvent, useRef } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { getPosts, createPost, deletePost, getCategories, uploadImage, Post, Category } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+import styles from "./page.module.css"
+
+const LIMIT = 10
+
+function UpArrowIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  )
+}
+
+export default function PostsPage() {
+  const { user, token } = useAuth()
+
+  const [posts, setPosts] = useState<Post[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [showForm, setShowForm] = useState(false)
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isPublished, setIsPublished] = useState(true)
+  const [categoryId, setCategoryId] = useState("")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const totalPages = Math.ceil(total / LIMIT)
+
+  async function fetchPosts(p: number) {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await getPosts(p, LIMIT)
+      setPosts(res.posts)
+      setTotal(res.total)
+    } catch {
+      setError("Gagal memuat postingan.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPosts(page)
+  }, [page])
+
+  useEffect(() => {
+    getCategories()
+      .then((res) => setCategories(res.categories))
+      .catch(() => {})
+  }, [])
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  function clearImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!token) return
+    setFormError(null)
+    setSubmitting(true)
+    try {
+      let imageUrl: string | undefined
+      if (imageFile) {
+        imageUrl = await uploadImage(token, imageFile, "post-images")
+      }
+
+      const newPost = await createPost(token, {
+        title,
+        content,
+        image_url: imageUrl,
+        is_published: isPublished,
+        category_id: categoryId || undefined,
+      })
+      if (newPost.is_published) {
+        setPosts((prev) => [newPost, ...prev])
+        setTotal((t) => t + 1)
+      }
+      setTitle("")
+      setContent("")
+      clearImage()
+      setIsPublished(true)
+      setCategoryId("")
+      setShowForm(false)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Gagal membuat postingan.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDelete(e: React.MouseEvent, postId: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!token) return
+    if (!confirm("Hapus postingan ini?")) return
+    setDeletingId(postId)
+    try {
+      await deletePost(token, postId)
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
+      setTotal((t) => t - 1)
+    } catch {
+      alert("Gagal menghapus postingan.")
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <main className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Pertanyaan</h1>
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+          <Link href="/categories" className={styles.newButton} style={{ background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
+            📚 Kategori
+          </Link>
+          {user ? (
+            <button
+              type="button"
+              className={styles.newButton}
+              onClick={() => setShowForm((v) => !v)}
+            >
+              {showForm ? "✕ Batal" : "+ Tanya Sesuatu"}
+            </button>
+          ) : (
+            <Link href="/login" className={styles.newButton}>
+              Masuk untuk Bertanya
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {showForm && user && (
+        <div className={styles.formCard}>
+          <p className={styles.formTitle}>Ajukan Pertanyaan</p>
+          <form onSubmit={handleSubmit} style={{ display: "contents" }}>
+            {formError && <div className={styles.formError}>{formError}</div>}
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Judul Pertanyaan *</label>
+              <input
+                className={styles.input}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Tulis pertanyaanmu secara singkat dan jelas..."
+                required
+                disabled={submitting}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Detail / Penjelasan *</label>
+              <textarea
+                className={styles.textarea}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Jelaskan konteks pertanyaanmu, apa yang sudah kamu coba, dll..."
+                required
+                disabled={submitting}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Kategori</label>
+              <select
+                className={styles.input}
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                disabled={submitting}
+                style={{ cursor: "pointer" }}
+              >
+                <option value="">— Pilih kategori —</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon} {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Gambar (opsional)</label>
+
+              {imagePreview ? (
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      width: "100%",
+                      maxHeight: "220px",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border-color)",
+                      background: "#0d1117",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    disabled={submitting}
+                    style={{
+                      position: "absolute",
+                      top: "6px",
+                      right: "6px",
+                      background: "rgba(0,0,0,0.65)",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: "26px",
+                      height: "26px",
+                      color: "#fff",
+                      fontSize: "0.85rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <label
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    padding: "1.5rem",
+                    border: "2px dashed var(--border-color)",
+                    borderRadius: "8px",
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    background: "#0d1117",
+                    color: "var(--text-muted)",
+                    fontSize: "0.875rem",
+                    transition: "border-color 180ms ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                >
+                  <span style={{ fontSize: "1.5rem" }}>🖼️</span>
+                  <span>Klik untuk pilih gambar</span>
+                  <span style={{ fontSize: "0.78rem" }}>PNG, JPG, GIF, WebP — maks. 5 MB</span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={handleFileChange}
+                    disabled={submitting}
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className={styles.formActions}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={isPublished}
+                  onChange={(e) => setIsPublished(e.target.checked)}
+                  disabled={submitting}
+                />
+                Publikasikan sekarang
+              </label>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={() => setShowForm(false)}
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button type="submit" className={styles.submitButton} disabled={submitting}>
+                {submitting ? (
+                  <><span className={styles.spinner} />Mengunggah...</>
+                ) : "Kirim Pertanyaan"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Semua Pertanyaan</h2>
+          {!loading && <span className={styles.count}>{total} pertanyaan</span>}
+        </div>
+
+        {loading ? (
+          <p className={styles.loadingState}>Memuat pertanyaan...</p>
+        ) : error ? (
+          <p className={styles.errorState}>{error}</p>
+        ) : posts.length === 0 ? (
+          <div className={styles.emptyState}>
+            <p>Belum ada pertanyaan.</p>
+            {!user && (
+              <p className={styles.loginPrompt}>
+                <Link href="/login">Masuk</Link> untuk mulai bertanya.
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            {posts.map((post, i) => (
+              <Link
+                key={post.id}
+                href={`/posts/${post.id}`}
+                className={styles.postCard}
+                style={{ animationDelay: `${i * 45}ms` }}
+              >
+                {post.image_url && (
+                  <Image
+                    src={post.image_url}
+                    alt={post.title}
+                    width={0} height={0} sizes="100vw" unoptimized
+                    className={styles.postImage}
+                  />
+                )}
+
+                <h3 className={styles.postTitle}>{post.title}</h3>
+
+                {post.excerpt && (
+                  <p className={styles.postExcerpt}>{post.excerpt}</p>
+                )}
+
+                <div className={styles.postMeta}>
+                  {post.author && (
+                    <>
+                      <span className={styles.postAuthor}>@{post.author.username}</span>
+                      <span>·</span>
+                    </>
+                  )}
+                  <span>
+                    {new Date(post.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric", month: "short", year: "numeric",
+                    })}
+                  </span>
+                  {!post.is_published && (
+                    <span className={styles.draftBadge}>DRAFT</span>
+                  )}
+
+                  {/* Upvote count chip */}
+                  <span className={styles.upvoteChip}>
+                    <UpArrowIcon className={styles.upvoteChipIcon} />
+                    {post.upvote_count ?? 0}
+                  </span>
+
+                  {user && post.author_id === user.id && (
+                    <button
+                      type="button"
+                      className={styles.deleteButton}
+                      onClick={(e) => handleDelete(e, post.id)}
+                      disabled={deletingId === post.id}
+                    >
+                      {deletingId === post.id ? "Menghapus..." : "Hapus"}
+                    </button>
+                  )}
+                </div>
+              </Link>
+            ))}
+
+            {totalPages > 1 && (
+              <div className={styles.pagination}>
+                <button type="button" className={styles.pageButton} onClick={() => setPage((p) => p - 1)} disabled={page === 1}>
+                  ← Sebelumnya
+                </button>
+                <span className={styles.pageInfo}>Halaman {page} dari {totalPages}</span>
+                <button type="button" className={styles.pageButton} onClick={() => setPage((p) => p + 1)} disabled={page === totalPages}>
+                  Berikutnya →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    </main>
+  )
+}
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
+import { request, uploadImage, updateProfile } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+
+type Profile = {
+  id: string
+  username: string
+  real_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export default function EditProfilePage() {
+  const params = useParams()
+  const rawUsername = params?.username as string
+  const username = rawUsername?.replace(/^@/, "")
+
+  // ✅ FIX: also destructure authLoading so we wait for session to resolve
+  const { user: currentUser, token, refreshUser, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [unauthorized, setUnauthorized] = useState(false)
+
+  // Form fields
+  const [editUsername, setEditUsername] = useState("")
+  const [editName, setEditName] = useState("")
+  const [editBio, setEditBio] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Avatar
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch profile data
+  useEffect(() => {
+    if (!username) return
+    request<Profile>(`/profile/${username}`)
+      .then((p) => {
+        setProfile(p)
+        setEditUsername(p.username)
+        setEditName(p.real_name ?? "")
+        setEditBio(p.bio ?? "")
+      })
+      .catch(() => setUnauthorized(true))
+      .finally(() => setProfileLoading(false))
+  }, [username])
+
+  // ✅ FIX: guard waits for BOTH profile fetch AND auth to resolve
+  // Covers: (a) not logged in at all, (b) logged in as wrong user
+  useEffect(() => {
+    if (profileLoading || authLoading) return // still loading — wait
+
+    if (!currentUser) {
+      // Not logged in → redirect to login
+      router.replace("/login")
+      return
+    }
+
+    if (profile && currentUser.username !== profile.username) {
+      // Logged in but it's someone else's profile
+      setUnauthorized(true)
+    }
+  }, [profileLoading, authLoading, currentUser, profile, router])
+
+  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setAvatarPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+    setAvatarError(null)
+  }
+
+  async function handleAvatarUpload() {
+    if (!avatarFile || !token) return
+    setAvatarError(null)
+    setAvatarUploading(true)
+    try {
+      const url = await uploadImage(token, avatarFile, "avatars")
+      const updated = await updateProfile(token, { avatar_url: url })
+      setProfile((prev) => prev ? { ...prev, avatar_url: updated.avatar_url } : prev)
+      setAvatarFile(null)
+      setAvatarPreview(null)
+      if (avatarInputRef.current) avatarInputRef.current.value = ""
+      await refreshUser()
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : "Gagal mengunggah foto.")
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!token) return
+    setSaveError(null)
+    setSaveSuccess(false)
+    setSaving(true)
+    try {
+      const updated = await updateProfile(token, {
+        username: editUsername.trim() || undefined,
+        real_name: editName.trim() || undefined,
+        bio: editBio.trim(),
+      })
+      setProfile((prev) =>
+        prev
+          ? { ...prev, username: updated.username, real_name: updated.real_name, bio: updated.bio }
+          : prev
+      )
+      await refreshUser()
+      setSaveSuccess(true)
+      if (updated.username && updated.username !== username) {
+        router.replace(`/profile/${updated.username}/edit`)
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Gagal menyimpan.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Show loading while either auth or profile is still resolving
+  if (profileLoading || authLoading) {
+    return (
+      <main style={styles.page}>
+        <div style={styles.skeleton}>
+          <div style={{ ...styles.skeletonBlock, width: 80, height: 80, borderRadius: "50%" }} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <div style={{ ...styles.skeletonBlock, width: "60%", height: 20 }} />
+            <div style={{ ...styles.skeletonBlock, width: "40%", height: 16 }} />
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  if (unauthorized || !profile) {
+    return (
+      <main style={styles.page}>
+        <div style={styles.errorBox}>
+          <span style={{ fontSize: "1.5rem" }}>🔒</span>
+          <p>Kamu tidak punya akses ke halaman ini.</p>
+          <Link href="/" style={styles.backLink}>← Kembali ke Beranda</Link>
+        </div>
+      </main>
+    )
+  }
+
+  const currentAvatar = avatarPreview ?? profile.avatar_url
+
+  return (
+    <main style={styles.page}>
+      {/* ── Breadcrumb ── */}
+      <div style={styles.breadcrumb}>
+        <Link href={`/profile/${profile.username}`} style={styles.breadcrumbLink}>
+          ← Profil @{profile.username}
+        </Link>
+        <span style={styles.breadcrumbSep}>/</span>
+        <span style={styles.breadcrumbCurrent}>Edit Profil</span>
+      </div>
+
+      <div style={styles.container}>
+        {/* ── Left: Avatar panel ── */}
+        <aside style={styles.avatarPanel}>
+          <h2 style={styles.sectionHeading}>Foto Profil</h2>
+
+          <div style={styles.avatarWrapper}>
+            {currentAvatar ? (
+              <Image
+                src={currentAvatar}
+                alt={profile.username}
+                width={120}
+                height={120}
+                style={styles.avatarImg}
+                unoptimized={!!avatarPreview}
+              />
+            ) : (
+              <div style={styles.avatarFallback}>
+                {profile.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            {/* Hover overlay */}
+            <label
+              htmlFor="avatar-upload"
+              style={styles.avatarOverlay}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = "1" }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = "0" }}
+            >
+              <span style={{ fontSize: "1.4rem" }}>📷</span>
+              <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>Ganti Foto</span>
+            </label>
+            <input
+              id="avatar-upload"
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleAvatarFileChange}
+              disabled={avatarUploading}
+            />
+          </div>
+
+          {avatarError && <p style={styles.fieldError}>{avatarError}</p>}
+
+          {avatarFile && (
+            <div style={styles.avatarActions}>
+              <button
+                type="button"
+                onClick={handleAvatarUpload}
+                disabled={avatarUploading}
+                style={styles.primaryBtn}
+              >
+                {avatarUploading ? (
+                  <><span style={styles.spinner} /> Mengunggah...</>
+                ) : "Simpan Foto"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAvatarFile(null)
+                  setAvatarPreview(null)
+                  if (avatarInputRef.current) avatarInputRef.current.value = ""
+                }}
+                disabled={avatarUploading}
+                style={styles.ghostBtn}
+              >
+                Batal
+              </button>
+            </div>
+          )}
+
+          <p style={styles.avatarHint}>PNG, JPG, GIF, WebP · Maks. 5 MB</p>
+        </aside>
+
+        {/* ── Right: Form panel ── */}
+        <section style={styles.formPanel}>
+          <h2 style={styles.sectionHeading}>Informasi Profil</h2>
+
+          <form onSubmit={handleSave} style={styles.form}>
+            {saveError && (
+              <div style={styles.alertError}>
+                <span>⚠️</span> {saveError}
+              </div>
+            )}
+            {saveSuccess && (
+              <div style={styles.alertSuccess}>
+                <span>✅</span> Profil berhasil disimpan!
+              </div>
+            )}
+
+            {/* Username */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label} htmlFor="edit-username">
+                Username
+              </label>
+              <div style={styles.inputWrapper}>
+                <span style={styles.inputPrefix}>@</span>
+                <input
+                  id="edit-username"
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => { setEditUsername(e.target.value); setSaveSuccess(false) }}
+                  disabled={saving}
+                  placeholder="username"
+                  maxLength={50}
+                  style={{ ...styles.input, paddingLeft: "2rem" }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#58a6ff")}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "#30363d")}
+                />
+              </div>
+              <span style={styles.fieldHint}>Hanya huruf, angka, dan underscore. Maks. 50 karakter.</span>
+            </div>
+
+            {/* Real name */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label} htmlFor="edit-name">
+                Nama Lengkap
+              </label>
+              <input
+                id="edit-name"
+                type="text"
+                value={editName}
+                onChange={(e) => { setEditName(e.target.value); setSaveSuccess(false) }}
+                disabled={saving}
+                placeholder="Nama kamu"
+                style={styles.input}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#58a6ff")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#30363d")}
+              />
+            </div>
+
+            {/* Bio */}
+            <div style={styles.fieldGroup}>
+              <label style={styles.label} htmlFor="edit-bio">
+                Bio
+              </label>
+              <textarea
+                id="edit-bio"
+                value={editBio}
+                onChange={(e) => { setEditBio(e.target.value); setSaveSuccess(false) }}
+                disabled={saving}
+                placeholder="Ceritakan sedikit tentang dirimu..."
+                rows={4}
+                maxLength={300}
+                style={{ ...styles.input, resize: "vertical", lineHeight: 1.6 }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "#58a6ff")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "#30363d")}
+              />
+              <span style={styles.fieldHint}>{editBio.length}/300 karakter</span>
+            </div>
+
+            <div style={styles.formFooter}>
+              <Link href={`/profile/${profile.username}`} style={styles.ghostBtn as React.CSSProperties}>
+                Batal
+              </Link>
+              <button type="submit" disabled={saving} style={styles.primaryBtn}>
+                {saving ? (
+                  <><span style={styles.spinner} /> Menyimpan...</>
+                ) : "Simpan Perubahan"}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </main>
+  )
+}
+
+// ── Inline styles matching the app's dark GitHub theme ────────────────────────
+const styles: Record<string, React.CSSProperties> = {
+  page: {
+    maxWidth: "900px",
+    margin: "0 auto",
+    padding: "clamp(1rem, 1.8vw, 1.5rem)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1.5rem",
+  },
+  breadcrumb: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    fontSize: "0.82rem",
+    color: "#6e7681",
+  },
+  breadcrumbLink: { color: "#8b949e", textDecoration: "none" },
+  breadcrumbSep: { color: "#3d444d" },
+  breadcrumbCurrent: { color: "#e6edf3", fontWeight: 500 },
+  container: {
+    display: "grid",
+    gridTemplateColumns: "240px 1fr",
+    gap: "1.5rem",
+    alignItems: "start",
+  },
+  avatarPanel: {
+    background: "#161b22",
+    border: "1px solid #30363d",
+    borderRadius: "14px",
+    padding: "1.5rem",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "1rem",
+  },
+  sectionHeading: {
+    fontSize: "0.9rem",
+    fontWeight: 650,
+    color: "#e6edf3",
+    margin: 0,
+    alignSelf: "flex-start",
+    letterSpacing: "0.01em",
+  },
+  avatarWrapper: {
+    position: "relative",
+    width: 120,
+    height: 120,
+    borderRadius: "50%",
+    overflow: "hidden",
+    border: "2px solid #30363d",
+  },
+  avatarImg: {
+    borderRadius: "50%",
+    objectFit: "cover",
+    display: "block",
+  },
+  avatarFallback: {
+    width: 120,
+    height: 120,
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #58a6ff, #1f6feb)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#fff",
+    fontSize: "2.5rem",
+    fontWeight: 700,
+    userSelect: "none",
+  },
+  avatarOverlay: {
+    position: "absolute",
+    inset: 0,
+    background: "rgba(0,0,0,0.65)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.25rem",
+    color: "#fff",
+    cursor: "pointer",
+    opacity: 0,
+    transition: "opacity 180ms ease",
+    borderRadius: "50%",
+  },
+  avatarActions: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    width: "100%",
+  },
+  avatarHint: {
+    fontSize: "0.72rem",
+    color: "#6e7681",
+    textAlign: "center",
+    margin: 0,
+    lineHeight: 1.5,
+  },
+  formPanel: {
+    background: "#161b22",
+    border: "1px solid #30363d",
+    borderRadius: "14px",
+    padding: "1.75rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1.25rem",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "1.1rem",
+  },
+  fieldGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.35rem",
+  },
+  label: {
+    fontSize: "0.8rem",
+    fontWeight: 600,
+    color: "#d7e0ea",
+    letterSpacing: "0.01em",
+  },
+  inputWrapper: { position: "relative" },
+  inputPrefix: {
+    position: "absolute",
+    left: "0.7rem",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#6e7681",
+    fontSize: "0.9rem",
+    pointerEvents: "none",
+  },
+  input: {
+    width: "100%",
+    background: "#0d1117",
+    border: "1px solid #30363d",
+    borderRadius: "8px",
+    color: "#e6edf3",
+    fontSize: "0.9rem",
+    padding: "0.65rem 0.8rem",
+    fontFamily: "inherit",
+    outline: "none",
+    transition: "border-color 180ms ease, box-shadow 180ms ease",
+    boxSizing: "border-box",
+  },
+  fieldHint: { fontSize: "0.73rem", color: "#6e7681" },
+  fieldError: { fontSize: "0.8rem", color: "#ffb8b3", textAlign: "center", margin: 0 },
+  alertError: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    fontSize: "0.85rem",
+    color: "#ffb8b3",
+    background: "rgba(248,81,73,0.1)",
+    border: "1px solid rgba(248,81,73,0.4)",
+    borderRadius: "8px",
+    padding: "0.65rem 0.85rem",
+  },
+  alertSuccess: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    fontSize: "0.85rem",
+    color: "#7ee787",
+    background: "rgba(63,185,80,0.1)",
+    border: "1px solid rgba(63,185,80,0.4)",
+    borderRadius: "8px",
+    padding: "0.65rem 0.85rem",
+  },
+  formFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: "0.75rem",
+    marginTop: "0.25rem",
+    paddingTop: "1rem",
+    borderTop: "1px solid #30363d",
+  },
+  primaryBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.4rem",
+    background: "#1f6feb",
+    border: "1px solid #388bfd",
+    color: "#fff",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    padding: "0.5rem 1.15rem",
+    borderRadius: "8px",
+    cursor: "pointer",
+    transition: "background 180ms ease",
+    textDecoration: "none",
+    whiteSpace: "nowrap" as const,
+  },
+  ghostBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    background: "transparent",
+    border: "1px solid #30363d",
+    color: "#8b949e",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    padding: "0.5rem 1rem",
+    borderRadius: "8px",
+    cursor: "pointer",
+    transition: "background 180ms ease, color 180ms ease",
+    textDecoration: "none",
+    whiteSpace: "nowrap" as const,
+  },
+  spinner: {
+    display: "inline-block",
+    width: "12px",
+    height: "12px",
+    border: "2px solid rgba(255,255,255,0.3)",
+    borderTopColor: "#fff",
+    borderRadius: "50%",
+    animation: "spin 0.7s linear infinite",
+  },
+  skeleton: {
+    display: "flex",
+    alignItems: "center",
+    gap: "1.25rem",
+    padding: "1.5rem",
+    background: "#161b22",
+    border: "1px solid #30363d",
+    borderRadius: "14px",
+  },
+  skeletonBlock: {
+    background: "linear-gradient(90deg, #1f2630 25%, #2d3642 50%, #1f2630 75%)",
+    backgroundSize: "200% 100%",
+    animation: "shimmer 1.4s infinite",
+    borderRadius: "6px",
+  },
+  errorBox: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.75rem",
+    padding: "2.5rem",
+    background: "#161b22",
+    border: "1px solid rgba(248,81,73,0.3)",
+    borderRadius: "14px",
+    textAlign: "center",
+    color: "#ffb8b3",
+    fontSize: "0.9rem",
+  },
+  backLink: { color: "#8b949e", textDecoration: "none", fontSize: "0.85rem" },
+}"use client"
+import { useEffect, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { request, getMyPosts, type ProfileData } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+import RankBadge from "@/components/RankBadge"
+import XPBar from "@/components/XPBar"
+
+type Post = {
+  id: string; title: string; excerpt: string | null
+  is_published: boolean; created_at: string
+}
+
+function StatPill({
+  label, value, accent, icon,
+}: { label: string; value: number | string; accent: string; icon: string }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: "0.3rem",
+      background: `${accent}10`, border: `1px solid ${accent}28`,
+      borderRadius: 12, padding: "0.85rem 1rem", flex: "1 1 110px",
+      position: "relative", overflow: "hidden",
+    }}>
+      <span style={{
+        position: "absolute", right: "0.5rem", top: "0.3rem",
+        fontSize: "2rem", opacity: 0.07, userSelect: "none",
+      }}>{icon}</span>
+      <span style={{ fontSize: "0.65rem", fontWeight: 700, color: accent,
+        textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {label}
+      </span>
+      <span style={{ fontSize: "1.5rem", fontWeight: 800, color: "#e0ecff",
+        letterSpacing: "-0.03em", lineHeight: 1 }}>
+        {typeof value === "number" ? value.toLocaleString() : value}
+      </span>
+    </div>
+  )
+}
+
+export default function ProfilePage() {
+  const params = useParams()
+  const rawUsername = params?.username as string
+  const username = rawUsername?.replace(/^@/, "")
+
+  const { user: authUser, token, loading: authLoading } = useAuth()
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [posts, setPosts] = useState<Post[]>([])
+  const [loadedUsername, setLoadedUsername] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const loading = !!username && loadedUsername !== username
+
+  const isOwn = !authLoading && !!authUser && !!profile && (
+    authUser.id === profile.id ||
+    authUser.username?.replace(/^@/,"").toLowerCase() === username?.toLowerCase()
+  )
+
+  useEffect(() => {
+    if (!username) return
+    let gone = false
+    request<ProfileData>(`/profile/${username}`)
+      .then(d => {
+        if (gone) return
+        setProfile(d)
+        setError(null)
+        setLoadedUsername(username)
+      })
+      .catch(() => {
+        if (gone) return
+        setProfile(null)
+        setError("Profil tidak ditemukan.")
+        setLoadedUsername(username)
+      })
+    return () => { gone = true }
+  }, [username])
+
+  useEffect(() => {
+    if (!isOwn || !token) return
+    getMyPosts(token, 1, 20).then(r => setPosts(r.posts)).catch(() => {})
+  }, [isOwn, token])
+
+  const wrap: React.CSSProperties = {
+    maxWidth: 760, margin: "0 auto",
+    padding: "clamp(1rem, 2vw, 1.5rem)",
+    display: "flex", flexDirection: "column", gap: "1.5rem",
+    animation: "pgIn 350ms ease",
+  }
+
+  if (loading) return (
+    <main style={wrap}>
+      <style>{`@keyframes pgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
+      <p style={{ color: "#4a5a78" }}>Memuat profil...</p>
+    </main>
+  )
+
+  if (error || !profile) return (
+    <main style={wrap}>
+      <style>{`@keyframes pgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
+      <p style={{ color: "#ff8080" }}>{error ?? "Profil tidak ditemukan."}</p>
+      <Link href="/" style={{ color: "#4a5a78", fontSize: "0.875rem" }}>← Beranda</Link>
+    </main>
+  )
+
+  const joined = new Date(profile.created_at).toLocaleDateString("id-ID", {
+    month: "long", year: "numeric",
+  })
+
+  return (
+    <main style={wrap}>
+      <style>{`
+        @keyframes pgIn  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+        @keyframes rowIn { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
+        .post-row:hover { background: #111c2a !important; border-color: #2a3a52 !important; }
+      `}</style>
+
+      {/* ── Profile header ── */}
+      <div style={{
+        background: "linear-gradient(160deg, #0f1825, #0a1020)",
+        border: "1px solid #1a2535", borderRadius: 16, padding: "1.75rem",
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start",
+          gap: "1.25rem", flexWrap: "wrap" }}>
+          {/* Avatar */}
+          {profile.avatar_url ? (
+            <Image src={profile.avatar_url} alt={profile.username}
+              width={80} height={80}
+              style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0,
+                border: "2px solid #1a2535", display: "block" }} />
+          ) : (
+            <div style={{
+              width: 80, height: 80, borderRadius: "50%", flexShrink: 0,
+              background: "linear-gradient(135deg, #4facfe, #1a6cff)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: "2rem", fontWeight: 800,
+            }}>
+              {profile.username.charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "flex-start",
+              justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+              <div>
+                <h1 style={{ fontSize: "1.45rem", fontWeight: 800,
+                  letterSpacing: "-0.025em", color: "#e8f0ff", margin: 0 }}>
+                  {profile.real_name || profile.username}
+                </h1>
+                <p style={{ color: "#3a4a62", margin: "0.15rem 0 0",
+                  fontSize: "0.88rem" }}>
+                  @{profile.username.replace(/^@/, "")}
+                </p>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <RankBadge rank={profile.rank} size="sm" animated />
+                {isOwn && (
+                  <Link href={`/profile/${profile.username}/edit`} style={{
+                    fontSize: "0.78rem", color: "#4a5a78",
+                    padding: "0.3rem 0.65rem", borderRadius: 7,
+                    border: "1px solid #1a2535", textDecoration: "none",
+                  }}>
+                    ✎ Edit
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {profile.bio && (
+              <p style={{ color: "#6a7a92", marginTop: "0.75rem",
+                lineHeight: 1.65, fontSize: "0.88rem" }}>
+                {profile.bio}
+              </p>
+            )}
+            <p style={{ color: "#2a3a52", marginTop: "0.5rem", fontSize: "0.75rem" }}>
+              Bergabung {joined}
+            </p>
+          </div>
+        </div>
+
+        {/* ── XP bar ── */}
+        <div style={{
+          marginTop: "1.25rem", paddingTop: "1.25rem",
+          borderTop: "1px solid #111820",
+        }}>
+          <XPBar
+            level={profile.level}
+            xpCurrent={profile.xp_current}
+            xpToNext={profile.xp_to_next_level}
+          />
+        </div>
+
+        {/* ── Stat pills ── */}
+        <div style={{
+          marginTop: "1.1rem",
+          display: "flex", gap: "0.75rem", flexWrap: "wrap",
+        }}>
+          <StatPill label="Reputasi" value={profile.reputation} accent="#3fb950" icon="⭐" />
+          <StatPill label="CP"       value={profile.cp_total}   accent="#f78166" icon="🏆" />
+          <StatPill label="Total XP" value={profile.xp_total}   accent="#4facfe" icon="✨" />
+        </div>
+
+        {/* Rank progress */}
+        {profile.rep_to_next_rank != null && (
+          <div style={{ marginTop: "0.9rem" }}>
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              fontSize: "0.68rem", color: "#3a4a62", marginBottom: "0.3rem",
+            }}>
+              <span>{profile.rank.name}</span>
+              <span>{profile.rep_to_next_rank.toLocaleString()} REP untuk naik pangkat</span>
+            </div>
+            <div style={{
+              height: 4, borderRadius: 999, background: "rgba(63,185,80,0.1)",
+              border: "1px solid rgba(63,185,80,0.18)", overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%",
+                width: `${Math.round((profile.reputation / (profile.reputation + profile.rep_to_next_rank)) * 100)}%`,
+                background: "linear-gradient(90deg, #1c8a2f, #3fb950)",
+                borderRadius: 999, boxShadow: "0 0 6px rgba(63,185,80,0.4)",
+              }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Posts (own profile only) ── */}
+      {isOwn && (
+        <div>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            paddingBottom: "0.75rem", borderBottom: "1px solid #111820", marginBottom: "0.85rem",
+          }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "#c8d8f0", margin: 0 }}>
+              Pertanyaan Saya
+            </h2>
+            <Link href="/posts/new" style={{
+              fontSize: "0.78rem", color: "#4facfe",
+              padding: "0.3rem 0.7rem", borderRadius: 7,
+              border: "1px solid rgba(79,172,254,0.25)", textDecoration: "none",
+            }}>
+              + Baru
+            </Link>
+          </div>
+
+          {posts.length === 0 ? (
+            <div style={{
+              padding: "2.5rem 1rem", textAlign: "center",
+              border: "1px dashed #1a2535", borderRadius: 12, color: "#3a4a62",
+            }}>
+              <p style={{ margin: "0 0 0.5rem" }}>Belum ada pertanyaan.</p>
+              <Link href="/posts" style={{ fontSize: "0.84rem", color: "#4facfe" }}>
+                Ajukan pertanyaan pertama →
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+              {posts.map((post, i) => (
+                <Link key={post.id} href={`/posts/${post.id}`}
+                  className="post-row"
+                  style={{
+                    display: "block", padding: "1rem 1.1rem",
+                    background: "#0f1825", border: "1px solid #1a2535",
+                    borderRadius: 10, textDecoration: "none", color: "inherit",
+                    transition: "background 160ms, border-color 160ms",
+                    animation: `rowIn ${200 + i * 40}ms ease both`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, fontSize: "0.93rem",
+                      color: "#c8d8f0", flex: 1 }}>
+                      {post.title}
+                    </span>
+                    {!post.is_published && (
+                      <span style={{
+                        fontSize: "0.65rem", fontWeight: 700,
+                        padding: "0.12rem 0.45rem", borderRadius: 999,
+                        background: "rgba(210,153,34,0.15)", color: "#e3b341",
+                        border: "1px solid rgba(210,153,34,0.35)",
+                      }}>
+                        DRAFT
+                      </span>
+                    )}
+                  </div>
+                  {post.excerpt && (
+                    <p style={{
+                      fontSize: "0.8rem", color: "#3a4a62", marginTop: "0.3rem",
+                      overflow: "hidden", display: "-webkit-box",
+                      WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    }}>
+                      {post.excerpt}
+                    </p>
+                  )}
+                  <p style={{ fontSize: "0.72rem", color: "#2a3a52", marginTop: "0.4rem" }}>
+                    {new Date(post.created_at).toLocaleDateString("id-ID", {
+                      day: "numeric", month: "short", year: "numeric",
+                    })}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </main>
+  )
+}
+"use client"
+
+import AuthSplit from "@/components/AuthSplit"
+import "../login/login.css"
+
+export default function SignupPage() {
+  return <AuthSplit initialMode="signup" />
+}
+"use client"
+/**
+ * File: components/AuthSplit.tsx
+ * Purpose: Combined Login/Signup UI with social (Google) flow support.
+ * Notes: handles local form submit, signup flow, and redirects for OAuth.
+ */
+
+import { FormEvent, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { login, request } from "@/lib/api"
+
+type AuthMode = "login" | "signup"
+
+interface AuthSplitProps {
+  initialMode: AuthMode
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13 17.8 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z"/>
+      <path fill="#FBBC05" d="M10.6 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6L2.3 13.3A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.5 10.6l8.1-6z"/>
+      <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-4.2-13.4-9.8l-8 6.1C6.5 42.5 14.6 48 24 48z"/>
+    </svg>
+  )
+}
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", color: "#6e7681", fontSize: "0.78rem" }}>
+      <span style={{ flex: 1, height: 1, background: "#30363d" }} />
+      {label}
+      <span style={{ flex: 1, height: 1, background: "#30363d" }} />
+    </div>
+  )
+}
+
+const googleBtnStyle: React.CSSProperties = {
+  width: "100%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "0.6rem",
+  background: "#ffffff",
+  border: "1px solid #d0d7de",
+  borderRadius: "10px",
+  color: "#24292f",
+  fontSize: "0.9rem",
+  fontWeight: 600,
+  padding: "0.65rem 1rem",
+  cursor: "pointer",
+  transition: "background 180ms ease, box-shadow 180ms ease",
+}
+
+const successBoxStyle: React.CSSProperties = {
+  border: "1px solid rgba(63,185,80,0.5)",
+  borderRadius: "10px",
+  background: "rgba(63,185,80,0.12)",
+  color: "#7ee787",
+  fontSize: "0.82rem",
+  padding: "0.62rem 0.75rem",
+  lineHeight: "1.5",
+}
+
+export default function AuthSplit({ initialMode }: AuthSplitProps) {
+  const router = useRouter()
+  const [mode, setMode] = useState<AuthMode>(initialMode)
+
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [remember, setRemember] = useState(false)
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+
+  // Signup state
+  const [signupEmail, setSignupEmail] = useState("")
+  const [signupUsername, setSignupUsername] = useState("")
+  const [signupRealName, setSignupRealName] = useState("")
+  const [signupPassword, setSignupPassword] = useState("")
+  const [signupLoading, setSignupLoading] = useState(false)
+  const [signupError, setSignupError] = useState<string | null>(null)
+  const [signupSuccess, setSignupSuccess] = useState<string | null>(null)
+
+  const [googleLoading, setGoogleLoading] = useState(false)
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setLoginError(null)
+    setLoginLoading(true)
+    try {
+      const data = await login(loginEmail, loginPassword)
+      localStorage.setItem("access_token", data.access_token)
+      if (remember) localStorage.setItem("remember_login", "true")
+      else localStorage.removeItem("remember_login")
+      window.dispatchEvent(new Event("auth-changed"))
+      router.push("/")
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Gagal masuk")
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
+  const handleSignup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSignupError(null)
+    setSignupSuccess(null)
+    setSignupLoading(true)
+    try {
+      const data = await request<{
+        access_token?: string | null
+        requires_email_verification?: boolean
+        message?: string
+        user: object
+      }>("/auth/signup", "POST", {
+        email: signupEmail,
+        password: signupPassword,
+        username: signupUsername,
+        real_name: signupRealName,
+      })
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token)
+        window.dispatchEvent(new Event("auth-changed"))
+        router.push("/")
+      } else {
+        setSignupSuccess(
+          data.message ||
+            "Akun berhasil dibuat! Cek inbox Anda dan klik tautan verifikasi."
+        )
+      }
+    } catch (err) {
+      setSignupError(err instanceof Error ? err.message : "Gagal mendaftar")
+    } finally {
+      setSignupLoading(false)
+    }
+  }
+
+  /**
+   * Supabase Google OAuth flow:
+   * 1. Fetch the Supabase OAuth URL from our backend (/auth/google/url)
+   * 2. Redirect the browser to that URL
+   * 3. Supabase handles the Google account chooser
+   * 4. After consent, Supabase redirects to /auth/callback with access_token in the hash
+   * 5. The /auth/callback page reads the token, stores it, and redirects to the user's profile
+   */
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    const errorSetter = mode === "login" ? setLoginError : setSignupError
+
+    try {
+      const data = await request<{ url: string }>("/auth/google/url")
+      // Full page redirect — Supabase takes over from here
+      window.location.href = data.url
+    } catch (err) {
+      errorSetter(err instanceof Error ? err.message : "Google sign-in gagal. Coba lagi.")
+      setGoogleLoading(false)
+    }
+  }
+
+  const isLoading = mode === "login" ? loginLoading : signupLoading
+
+  return (
+    <div className="auth-page">
+      <div className={`auth-shell ${mode === "signup" ? "mode-signup" : "mode-login"}`}>
+
+        {/* ── Left visual panel ── */}
+        <section className="auth-visual" aria-label="Preview aplikasi">
+          <div className="auth-brand">
+            <Image src="/garuda_icon.png" alt="Nusa CoNex" width={36} height={36} className="auth-brand-icon" />
+            <span className="auth-brand-text">Nusa CoNex</span>
+          </div>
+
+          <h2 className="auth-visual-title">
+            {mode === "login" ? "Siap Naik Peringkat Lagi?" : "Saatnya Naik Level"}
+          </h2>
+          <p className="auth-visual-subtitle">
+            {mode === "login"
+              ? "Poin, streak, dan analisismu sudah menunggu."
+              : "Raih poin, buka peringkat baru, dan kuasai setiap materi."}
+          </p>
+
+          <div className="auth-preview-grid" aria-hidden="true">
+            <div className="auth-preview-card large">
+              <span className="auth-preview-kicker">Progress</span>
+              <strong>92% Minggu Ini</strong>
+            </div>
+            <div className="auth-preview-card">
+              <span className="auth-preview-kicker">Streak</span>
+              <strong>15 Hari</strong>
+            </div>
+            <div className="auth-preview-card">
+              <span className="auth-preview-kicker">Peringkat</span>
+              <strong>#8 Nasional</strong>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            form={mode === "login" ? "login-form" : "signup-form"}
+            className="auth-submit auth-panel-submit"
+            disabled={isLoading}
+          >
+            {mode === "login"
+              ? loginLoading ? <><span className="auth-spinner" /> Sedang masuk...</> : "Lanjut Belajar"
+              : signupLoading ? <><span className="auth-spinner" /> Membuat akun...</> : "Mulai Sekarang"}
+          </button>
+
+          <button
+            type="button"
+            className="auth-switch-left"
+            onClick={() => {
+              setMode(mode === "login" ? "signup" : "login")
+              setSignupSuccess(null)
+              setSignupError(null)
+              setLoginError(null)
+            }}
+            disabled={isLoading}
+          >
+            {mode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
+          </button>
+        </section>
+
+        {/* ── Right form panel ── */}
+        <section className="auth-form-pane">
+          <Link href="/" className="auth-back">← Kembali ke Nusa CoNex</Link>
+
+          <div className="auth-slider-viewport">
+            <div className="auth-slider-track">
+
+              {/* LOGIN SLIDE */}
+              <div className="auth-slide login-slide" aria-hidden={mode !== "login"}>
+                <div className="auth-card">
+                  <form id="login-form" className="auth-form" onSubmit={handleLogin}>
+                    {loginError && (
+                      <div className="auth-error" role="alert" aria-live="polite">{loginError}</div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={loginLoading || googleLoading}
+                      style={googleBtnStyle}
+                    >
+                      {googleLoading
+                        ? <span className="auth-spinner" style={{ borderTopColor: "#555", borderColor: "rgba(0,0,0,0.12)" }} />
+                        : <GoogleIcon />}
+                      {googleLoading ? "Mengalihkan ke Google..." : "Lanjutkan dengan Google"}
+                    </button>
+
+                    <Divider label="atau masuk dengan email" />
+
+                    <div className="auth-field">
+                      <label htmlFor="login-email" className="auth-label">Username atau Alamat Email</label>
+                      <input
+                        id="login-email"
+                        type="text"
+                        className="auth-input"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                        placeholder="username atau you@example.com"
+                        required
+                        disabled={loginLoading}
+                        autoComplete="username"
+                      />
+                    </div>
+
+                    <div className="auth-field">
+                      <div className="auth-label-row">
+                        <label htmlFor="login-password" className="auth-label">Kata Sandi</label>
+                        <Link href="/forgot-password" className="auth-forgot">Lupa kata sandi?</Link>
+                      </div>
+                      <input
+                        id="login-password"
+                        type="password"
+                        className="auth-input"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Masukkan kata sandi Anda"
+                        required
+                        disabled={loginLoading}
+                        autoComplete="current-password"
+                      />
+                    </div>
+
+                    <label className="auth-remember">
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                        disabled={loginLoading}
+                      />
+                      Ingat Saya
+                    </label>
+                  </form>
+                </div>
+              </div>
+
+              {/* SIGNUP SLIDE */}
+              <div className="auth-slide signup-slide" aria-hidden={mode !== "signup"}>
+                <div className="auth-card">
+                  <form id="signup-form" className="auth-form" onSubmit={handleSignup}>
+                    {signupError && (
+                      <div className="auth-error" role="alert" aria-live="polite">{signupError}</div>
+                    )}
+                    {signupSuccess && (
+                      <div role="status" aria-live="polite" style={successBoxStyle}>{signupSuccess}</div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={signupLoading || googleLoading || !!signupSuccess}
+                      style={googleBtnStyle}
+                    >
+                      {googleLoading
+                        ? <span className="auth-spinner" style={{ borderTopColor: "#555", borderColor: "rgba(0,0,0,0.12)" }} />
+                        : <GoogleIcon />}
+                      {googleLoading ? "Mengalihkan ke Google..." : "Daftar dengan Google"}
+                    </button>
+
+                    <Divider label="atau daftar dengan email" />
+
+                    <div className="auth-field">
+                      <label htmlFor="signup-real-name" className="auth-label">Nama Lengkap</label>
+                      <input
+                        id="signup-real-name"
+                        type="text"
+                        className="auth-input"
+                        value={signupRealName}
+                        onChange={(e) => setSignupRealName(e.target.value)}
+                        placeholder="Nama Anda"
+                        disabled={signupLoading || !!signupSuccess}
+                      />
+                    </div>
+
+                    <div className="auth-field">
+                      <label htmlFor="signup-username" className="auth-label">Nama Pengguna</label>
+                      <input
+                        id="signup-username"
+                        type="text"
+                        className="auth-input"
+                        value={signupUsername}
+                        onChange={(e) => setSignupUsername(e.target.value)}
+                        placeholder="@namapengguna"
+                        required
+                        disabled={signupLoading || !!signupSuccess}
+                        autoComplete="username"
+                      />
+                    </div>
+
+                    <div className="auth-field">
+                      <label htmlFor="signup-email" className="auth-label">Alamat Email</label>
+                      <input
+                        id="signup-email"
+                        type="email"
+                        className="auth-input"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        required
+                        disabled={signupLoading || !!signupSuccess}
+                        autoComplete="email"
+                      />
+                    </div>
+
+                    <div className="auth-field">
+                      <label htmlFor="signup-password" className="auth-label">Kata Sandi</label>
+                      <input
+                        id="signup-password"
+                        type="password"
+                        className="auth-input"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        placeholder="Buat kata sandi"
+                        required
+                        disabled={signupLoading || !!signupSuccess}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}"use client"
+/**
+ * File: components/Navbar.tsx
+ * Purpose: Top navigation bar showing branding and user menu.
+ * Notes: uses `useAuth` to show avatar, login button, and logout flow.
+ */
+
+import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { useAuth } from "@/hooks/useAuth"
+import styles from "./Navbar.module.css"
+
+export default function Navbar() {
+  const { user, loading, logout } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", onClickOutside)
+    return () => document.removeEventListener("mousedown", onClickOutside)
+  }, [])
+
+  return (
+    <header className={styles.navbar}>
+      <div className={styles.navInner}>
+        <Link href="/" className={styles.logo}>
+          <Image
+            src="/garuda_icon.png"
+            alt="Nusa CoNex"
+            width={26}
+            height={26}
+            className={styles.logoIcon}
+          />
+          <span className={styles.logoText}>Nusa CoNex</span>
+        </Link>
+
+        <div className={styles.authArea}>
+          {loading ? (
+            <div className={styles.avatarSkeleton} />
+          ) : user ? (
+            <div className={styles.userMenu} ref={menuRef}>
+              <button
+                type="button"
+                className={styles.avatarButton}
+                onClick={() => setMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+              >
+                {user.avatar_url ? (
+                  <Image
+                    src={user.avatar_url}
+                    alt={user.username}
+                    className={styles.avatar}
+                    width={32}
+                    height={32}
+                  />
+                ) : (
+                  <span className={styles.avatarFallback}>
+                    {user.username.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </button>
+
+              {menuOpen && (
+                <div className={styles.dropdown} role="menu">
+                  <div className={styles.dropdownHeader}>
+                    <span className={styles.dropdownUsername}>@{user.username}</span>
+                    {user.real_name && (
+                      <span className={styles.dropdownRealName}>{user.real_name}</span>
+                    )}
+                  </div>
+                  <div className={styles.dropdownDivider} />
+                  <Link href={`/profile/${user.username}`} className={styles.dropdownItem} role="menuitem">
+                    Profil
+                  </Link>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
+                    onClick={() => {
+                      logout()
+                      setMenuOpen(false)
+                    }}
+                  >
+                    Keluar
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link href="/login" className={styles.authButton}>
+              Masuk
+            </Link>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
+"use client"
+/**
+ * File: components/RankBadge.tsx
+ * Purpose: Small visual component that renders a user's rank badge.
+ * Notes: supports animated shimmer for high tiers.
+ */
+
+export type RankData = { name: string; icon: string; min_rep?: number }
+
+interface Props {
+  rank: RankData
+  size?: "xs" | "sm" | "md" | "lg"
+  showName?: boolean
+  animated?: boolean   // shimmer on Diamond/Platinum
+}
+
+const TIERS: Record<string, { bg: string; border: string; text: string; glow?: string }> = {
+  Bronze:   { bg: "rgba(180,120,60,0.12)",  border: "rgba(180,120,60,0.45)",  text: "#e0a060" },
+  Silver:   { bg: "rgba(192,192,210,0.12)", border: "rgba(192,192,210,0.45)", text: "#c0c0d0" },
+  Gold:     { bg: "rgba(230,180,0,0.14)",   border: "rgba(230,180,0,0.5)",    text: "#f0c020" },
+  Platinum: { bg: "rgba(72,209,204,0.12)",  border: "rgba(72,209,204,0.45)",  text: "#48d1cc", glow: "0 0 8px rgba(72,209,204,0.35)" },
+  Diamond:  { bg: "rgba(96,180,255,0.13)",  border: "rgba(96,180,255,0.5)",   text: "#78b4ff", glow: "0 0 10px rgba(96,180,255,0.4)" },
+}
+
+const PAD = { xs: "0.1rem 0.35rem", sm: "0.15rem 0.5rem", md: "0.25rem 0.7rem", lg: "0.35rem 0.9rem" }
+const FSZ = { xs: "0.65rem", sm: "0.75rem", md: "0.83rem", lg: "0.95rem" }
+const ISZ = { xs: "0.75rem", sm: "0.85rem", md: "1rem",    lg: "1.15rem" }
+
+export default function RankBadge({ rank, size = "sm", showName = true, animated = true }: Props) {
+  const t   = TIERS[rank.name] ?? TIERS.Bronze
+  const hi  = animated && (rank.name === "Diamond" || rank.name === "Platinum")
+
+  return (
+    <>
+      {hi && (
+        <style>{`
+          @keyframes rb-shimmer {
+            0%   { background-position: -200% center; }
+            100% { background-position:  200% center; }
+          }
+          .rb-shimmer {
+            background: linear-gradient(90deg, ${t.text} 0%, #fff 40%, ${t.text} 60%, #fff 80%, ${t.text} 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: rb-shimmer 3s linear infinite;
+          }
+        `}</style>
+      )}
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: "0.28rem",
+        padding: PAD[size], borderRadius: 999,
+        background: t.bg, border: `1px solid ${t.border}`,
+        fontSize: FSZ[size], fontWeight: 700,
+        boxShadow: t.glow,
+        whiteSpace: "nowrap", letterSpacing: "0.01em",
+        userSelect: "none",
+        transition: "box-shadow 200ms ease",
+      }}>
+        <span style={{ fontSize: ISZ[size], lineHeight: 1 }}>{rank.icon}</span>
+        {showName && (
+          <span className={hi ? "rb-shimmer" : ""} style={hi ? {} : { color: t.text }}>
+            {rank.name}
+          </span>
+        )}
+      </span>
+    </>
+  )
+}"use client"
+import Link from "next/link"
+import Image from "next/image"
+import { usePathname } from "next/navigation"
+import type { ReactNode } from "react"
+import "./Sidebar.css"
+
+interface SidebarItem { name: string; href: string; icon: ReactNode }
+
+const items: SidebarItem[] = [
+  {
+    name: "Dashboard", href: "/",
+    icon: <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 13h6v7H4zM14 4h6v16h-6zM4 4h6v7H4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>,
+  },
+  {
+    name: "Pertanyaan", href: "/posts",
+    icon: <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 4h10M7 9h10M7 14h6M5 20h14a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>,
+  },
+  {
+    name: "Kategori", href: "/categories",
+    icon: <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h10M4 18h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>,
+  },
+  {
+    name: "Kuis", href: "/quizzes",
+    icon: <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.1 9a3 3 0 1 1 5.8 1c-.6 1.8-2.7 2.1-2.7 4M12 18h.01M4 12a8 8 0 1 0 16 0a8 8 0 0 0-16 0Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>,
+  },
+  {
+    name: "Peringkat", href: "/leaderboard",
+    icon: <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>,
+  },
+  {
+    name: "Pengaturan", href: "/settings",
+    icon: <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4a3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" strokeWidth="1.8" /><path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1 1 0 0 1 0 1.4l-1.2 1.2a1 1 0 0 1-1.4 0l-.1-.1a1 1 0 0 0-1.1-.2a1 1 0 0 0-.6.9V20a1 1 0 0 1-1 1h-1.7a1 1 0 0 1-1-1v-.2a1 1 0 0 0-.6-.9a1 1 0 0 0-1.1.2l-.1.1a1 1 0 0 1-1.4 0l-1.2-1.2a1 1 0 0 1 0-1.4l.1-.1a1 1 0 0 0 .2-1.1a1 1 0 0 0-.9-.6H4a1 1 0 0 1-1-1v-1.7a1 1 0 0 1 1-1h.2a1 1 0 0 0 .9-.6a1 1 0 0 0-.2-1.1l-.1-.1a1 1 0 0 1 0-1.4l1.2-1.2a1 1 0 0 1 1.4 0l.1.1a1 1 0 0 0 1.1.2a1 1 0 0 0 .6-.9V4a1 1 0 0 1 1-1h1.7a1 1 0 0 1 1 1v.2a1 1 0 0 0 .6.9a1 1 0 0 0 1.1-.2l.1-.1a1 1 0 0 1 1.4 0l1.2 1.2a1 1 0 0 1 0 1.4l-.1.1a1 1 0 0 0-.2 1.1a1 1 0 0 0 .9.6H20a1 1 0 0 1 1 1v1.7a1 1 0 0 1-1 1h-.2a1 1 0 0 0-.9.6Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  },
+]
+
+export default function Sidebar() {
+  const pathname = usePathname()
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-header">
+        <div className="sidebar-brand">
+          <Image src="/garuda_icon.png" alt="Nusa CoNex" width={24} height={24} className="sidebar-brand-icon" />
+          <h2 className="sidebar-title">Nusa CoNex</h2>
+        </div>
+        <p className="sidebar-subtitle">Dasbor</p>
+      </div>
+      <nav className="sidebar-nav">
+        <ul className="sidebar-list">
+          {items.map(item => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={`sidebar-link ${
+                  pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href))
+                    ? "active" : ""
+                }`}
+              >
+                <span className="sidebar-icon">{item.icon}</span>
+                <span className="sidebar-text">{item.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  )
+}"use client"
+
+interface Props {
+  level: number
+  xpCurrent: number
+  xpToNext: number
+}
+
+export default function XPBar({ level, xpCurrent, xpToNext }: Props) {
+  const safeToNext = Math.max(xpToNext, 1)
+  const percent = Math.max(0, Math.min(100, Math.round((xpCurrent / safeToNext) * 100)))
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        color: "#6a7a92", fontSize: "0.74rem", fontWeight: 600,
+      }}>
+        <span>Level {level}</span>
+        <span>{xpCurrent.toLocaleString()} / {xpToNext.toLocaleString()} XP</span>
+      </div>
+
+      <div style={{
+        height: 8, borderRadius: 999, overflow: "hidden",
+        background: "rgba(79,172,254,0.12)",
+        border: "1px solid rgba(79,172,254,0.25)",
+      }}>
+        <div style={{
+          width: `${percent}%`,
+          height: "100%",
+          borderRadius: 999,
+          background: "linear-gradient(90deg, #1a6cff, #4facfe)",
+          boxShadow: "0 0 10px rgba(79,172,254,0.45)",
+          transition: "width 220ms ease",
+        }} />
+      </div>
+    </div>
+  )
+}

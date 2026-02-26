@@ -1,4 +1,9 @@
 "use client"
+/**
+ * File: components/AuthSplit.tsx
+ * Purpose: Combined Login/Signup UI with social (Google) flow support.
+ * Notes: handles local form submit, signup flow, and redirects for OAuth.
+ */
 
 import { FormEvent, useState } from "react"
 import Image from "next/image"

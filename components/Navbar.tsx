@@ -1,4 +1,9 @@
 "use client"
+/**
+ * File: components/Navbar.tsx
+ * Purpose: Top navigation bar showing branding and user menu.
+ * Notes: uses `useAuth` to show avatar, login button, and logout flow.
+ */
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
