@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation"
 import {
   getPost, deletePost, getComments, createComment,
   acceptComment, deleteComment, getUpvoteStatus, toggleUpvote,
-  Post, Comment,
+  Post, Comment, upvoteComment,
 } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./post.module.css"
@@ -122,6 +122,18 @@ export default function PostDetailPage() {
       )
     } catch {
       alert("Gagal menerima jawaban.")
+    }
+  }
+
+  async function handleCommentUpvote(commentId: string) {
+    if (!token) return
+    try {
+      const updated = await upvoteComment(token, commentId)
+      setComments((prev) =>
+        prev.map((c) => c.id === updated.id ? updated : c)
+      )
+    } catch {
+      alert("Gagal memberi upvote.")
     }
   }
 
@@ -308,6 +320,20 @@ export default function PostDetailPage() {
                   </time>
 
                   <div className={styles.commentActions}>
+                    {/* Upvote button */}
+                    <button
+                      type="button"
+                      className={styles.acceptButton}
+                      style={{
+                        borderColor: comment.has_upvoted ? "rgba(88,166,255,0.6)" : undefined,
+                        color: comment.has_upvoted ? "#58a6ff" : undefined,
+                        background: comment.has_upvoted ? "rgba(88,166,255,0.12)" : undefined,
+                      }}
+                      onClick={() => handleCommentUpvote(comment.id)}
+                      disabled={!user || user.id === comment.author_id}
+                    >
+                      ↑ {comment.upvote_count}
+                    </button>
                     {isOwner && !comment.is_accepted && (
                       <button
                         type="button"
