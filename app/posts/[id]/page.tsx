@@ -59,14 +59,14 @@ export default function PostDetailPage() {
         setUpvoteCount(res.upvote_count)
         setIsUpvoted(res.is_upvoted)
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [postId, token])
 
   useEffect(() => {
     if (!postId) return
     getComments(postId)
       .then(setComments)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setCommentsLoading(false))
   }, [postId])
 
@@ -187,10 +187,10 @@ export default function PostDetailPage() {
         )}
 
         <div className={styles.body}>
-          {post.category && (
-            <Link href={`/categories/${post.category.slug}`} className={styles.categoryBadge}>
-              {post.category.icon && <span>{post.category.icon}</span>}
-              {post.category.name}
+          {post.subject && (
+            <Link href={`/categories/${post.subject.slug}`} className={styles.categoryBadge}>
+              {post.subject.icon && <span>{post.subject.icon}</span>}
+              {post.subject.name}
             </Link>
           )}
 

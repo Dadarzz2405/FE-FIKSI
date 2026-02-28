@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { getCategories, Category } from "@/lib/api"
+import { getGroupedSubjects, CategoryGrouping } from "@/lib/api"
 import styles from "./categories.module.css"
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([])
+  const [groupedCategories, setGroupedCategories] = useState<CategoryGrouping[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getCategories()
-      .then((res) => setCategories(res.categories))
+    getGroupedSubjects()
+      .then((res) => setGroupedCategories(res.categories))
       .catch(() => setError("Gagal memuat kategori."))
       .finally(() => setLoading(false))
   }, [])
@@ -27,22 +27,25 @@ export default function CategoriesPage() {
       {loading && <p className={styles.loadingState}>Memuat kategori...</p>}
       {error && <p className={styles.errorState}>{error}</p>}
 
-      {!loading && !error && (
-        <div className={styles.grid}>
-          {categories.map((cat) => (
-            <Link key={cat.id} href={`/categories/${cat.slug}`} className={styles.card}>
-              <span className={styles.icon}>{cat.icon || "📌"}</span>
-              <div className={styles.info}>
-                <strong className={styles.name}>{cat.name}</strong>
-                {cat.description && (
-                  <p className={styles.desc}>{cat.description}</p>
-                )}
-                <span className={styles.count}>{cat.post_count} pertanyaan</span>
-              </div>
-            </Link>
-          ))}
+      {!loading && !error && groupedCategories.map((group) => (
+        <div key={group.id} style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem", color: "var(--text-color)" }}>
+            {group.icon} {group.name}
+          </h2>
+          {group.description && <p style={{ marginBottom: "1rem", color: "var(--text-muted)" }}>{group.description}</p>}
+          <div className={styles.grid}>
+            {group.subjects.map((sub) => (
+              <Link key={sub.id} href={`/categories/${sub.slug}`} className={styles.card}>
+                <span className={styles.icon}>{sub.icon || "📌"}</span>
+                <div className={styles.info}>
+                  <strong className={styles.name}>{sub.name}</strong>
+                  <span className={styles.count}>{sub.post_count} pertanyaan</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
-      )}
+      ))}
     </main>
   )
 }

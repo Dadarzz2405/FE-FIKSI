@@ -8,7 +8,7 @@
 import { useEffect, useState, FormEvent, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { getPosts, createPost, deletePost, getCategories, uploadImage, Post, Category } from "@/lib/api"
+import { getPosts, createPost, deletePost, getSubjects, uploadImage, Post, Subject } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./page.module.css"
 
@@ -46,8 +46,8 @@ export default function PostsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isPublished, setIsPublished] = useState(true)
-  const [categoryId, setCategoryId] = useState("")
-  const [categories, setCategories] = useState<Category[]>([])
+  const [subjectId, setSubjectId] = useState("")
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -75,9 +75,9 @@ export default function PostsPage() {
   }, [page])
 
   useEffect(() => {
-    getCategories()
-      .then((res) => setCategories(res.categories))
-      .catch(() => {})
+    getSubjects()
+      .then((res) => setSubjects(res.subjects))
+      .catch(() => { })
   }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -111,7 +111,7 @@ export default function PostsPage() {
         content,
         image_url: imageUrl,
         is_published: isPublished,
-        category_id: categoryId || undefined,
+        subject_id: subjectId || undefined,
       })
       if (newPost.is_published) {
         setPosts((prev) => [newPost, ...prev])
@@ -121,7 +121,7 @@ export default function PostsPage() {
       setContent("")
       clearImage()
       setIsPublished(true)
-      setCategoryId("")
+      setSubjectId("")
       setShowForm(false)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Gagal membuat postingan.")
@@ -153,7 +153,7 @@ export default function PostsPage() {
         <h1 className={styles.title}>Pertanyaan</h1>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <Link href="/categories" className={styles.newButton} style={{ background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-            📚 Kategori
+            📚 Mata Pelajaran
           </Link>
           {user ? (
             <button
@@ -203,18 +203,18 @@ export default function PostsPage() {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Kategori</label>
+              <label className={styles.label}>Mata Pelajaran</label>
               <select
                 className={styles.input}
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
                 disabled={submitting}
                 style={{ cursor: "pointer" }}
               >
-                <option value="">— Pilih kategori —</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.icon} {cat.name}
+                <option value="">— Pilih mata pelajaran —</option>
+                {subjects.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.icon} {sub.name}
                   </option>
                 ))}
               </select>

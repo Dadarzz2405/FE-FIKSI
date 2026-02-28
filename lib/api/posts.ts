@@ -10,17 +10,17 @@ export type PostAuthor = {
 export type Post = {
   id: string; title: string; content: string; excerpt: string | null
   image_url: string | null; is_published: boolean; created_at: string; updated_at: string
-  author_id: string; author: PostAuthor | null; category_id: string | null
+  author_id: string; author: PostAuthor | null; subject_id: string | null
   upvote_count?: number
   has_upvoted?: boolean
-  category?: { id: string; name: string; slug: string; icon: string | null } | null
+  subject?: { id: string; name: string; slug: string; icon: string | null; academic_category_id: string } | null
 }
 
 export type PostListResponse = { posts: Post[]; total: number; page: number; limit: number }
 
 export type PostCreatePayload = {
   title: string; content: string; excerpt?: string
-  image_url?: string; is_published?: boolean; category_id?: string
+  image_url?: string; is_published?: boolean; subject_id?: string
 }
 
 export type PostUpvoteStatus = { upvote_count: number; is_upvoted: boolean }
