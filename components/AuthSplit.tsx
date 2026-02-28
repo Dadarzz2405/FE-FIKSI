@@ -183,21 +183,6 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
               : "Raih poin, buka peringkat baru, dan kuasai setiap materi."}
           </p>
 
-          <div className="auth-preview-grid" aria-hidden="true">
-            <div className="auth-preview-card large">
-              <span className="auth-preview-kicker">Progress</span>
-              <strong>92% Minggu Ini</strong>
-            </div>
-            <div className="auth-preview-card">
-              <span className="auth-preview-kicker">Streak</span>
-              <strong>15 Hari</strong>
-            </div>
-            <div className="auth-preview-card">
-              <span className="auth-preview-kicker">Peringkat</span>
-              <strong>#8 Nasional</strong>
-            </div>
-          </div>
-
           <button
             type="submit"
             form={mode === "login" ? "login-form" : "signup-form"}

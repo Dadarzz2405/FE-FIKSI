@@ -11,9 +11,13 @@ export interface LoginResponse {
 }
 
 export interface User {
-  id: number
+  id: string
   email: string
-  name: string
+  username: string
+  real_name?: string
+  avatar_url?: string
+  bio?: string
+  is_active: boolean
 }
 
 export async function login(email: string, password: string) {
