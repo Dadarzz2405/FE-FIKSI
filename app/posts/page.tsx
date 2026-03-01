@@ -61,8 +61,8 @@ export default function PostsPage() {
     setError(null)
     try {
       const res = await getPosts(p, LIMIT)
-      setPosts(res.posts)
-      setTotal(res.total)
+      setPosts(Array.isArray(res?.posts) ? res.posts : [])
+      setTotal(typeof res?.total === "number" ? res.total : 0)
     } catch {
       setError("Gagal memuat postingan.")
     } finally {

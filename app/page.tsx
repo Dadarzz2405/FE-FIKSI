@@ -29,7 +29,11 @@ export default function HomePage() {
     async function fetchData() {
       try {
         const res = await getHomepage()
-        setData(res)
+        setData({
+          status: typeof res?.status === "string" ? res.status : "ok",
+          latest_post: res?.latest_post,
+          popular_posts: Array.isArray(res?.popular_posts) ? res.popular_posts : [],
+        })
       } catch {
         setError("Gagal memuat data beranda.")
       } finally {
@@ -57,6 +61,7 @@ export default function HomePage() {
   }
 
   if (!data) return null
+  const popularPosts = Array.isArray(data.popular_posts) ? data.popular_posts : []
 
   return (
     <main className={styles.page}>
@@ -112,9 +117,9 @@ export default function HomePage() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Postingan Populer</h2>
 
-        {data.popular_posts.length > 0 ? (
+        {popularPosts.length > 0 ? (
           <div className={styles.list}>
-            {data.popular_posts.map((post) => (
+            {popularPosts.map((post) => (
               <article key={post.id} className={styles.card}>
                 {post.image_url && (
                   <Image
