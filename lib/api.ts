@@ -1,6 +1,9 @@
 import { HomepageFeed } from "./types"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const DEFAULT_API_BASE_URL = "https://nusa-conex.onrender.com"
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_BASE_URL
+).replace(/\/+$/, "")
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
@@ -66,8 +69,34 @@ export async function uploadImage(
 // -- Auth --
 export function getHomepage() { return request<HomepageFeed>("/homepage/") }
 export type ComingSoonResponse = { status: string; message: string }
-export function getQuizzesComingSoon() { return request<ComingSoonResponse>("/quizzes/") }
-export function getSettingsComingSoon() { return request<ComingSoonResponse>("/settings/") }
+
+async function getComingSoonWithFallback(
+  endpoint: string,
+  fallbackMessage: string
+): Promise<ComingSoonResponse> {
+  try {
+    return await request<ComingSoonResponse>(endpoint)
+  } catch {
+    return {
+      status: "coming_soon",
+      message: fallbackMessage,
+    }
+  }
+}
+
+export function getQuizzesComingSoon() {
+  return getComingSoonWithFallback(
+    "/quizzes/",
+    "Quizzes endpoints are coming soon."
+  )
+}
+
+export function getSettingsComingSoon() {
+  return getComingSoonWithFallback(
+    "/settings/",
+    "Settings endpoints are coming soon."
+  )
+}
 
 export function login(email: string, password: string) {
   return request<{

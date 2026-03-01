@@ -37,7 +37,21 @@ export default function CategoryDetailPage() {
     queueMicrotask(() => setLoading(true))
     getPostsByCategory(slug, page)
       .then((res) => {
-        if (!cancelled) setData(res as PageData)
+        if (cancelled) return
+        const safePosts = Array.isArray((res as PageData | undefined)?.posts)
+          ? (res as PageData).posts
+          : []
+        const safeCategory = (res as PageData | undefined)?.category
+        if (!safeCategory || !safeCategory.id || !safeCategory.name || !safeCategory.slug) {
+          setError("Kategori tidak ditemukan.")
+          return
+        }
+        setData({
+          category: safeCategory,
+          posts: safePosts,
+          total: typeof (res as PageData | undefined)?.total === "number" ? (res as PageData).total : safePosts.length,
+          page: typeof (res as PageData | undefined)?.page === "number" ? (res as PageData).page : page,
+        })
       })
       .catch(() => {
         if (!cancelled) setError("Gagal memuat postingan.")

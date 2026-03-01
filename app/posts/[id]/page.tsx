@@ -44,7 +44,7 @@ export default function PostDetailPage() {
   useEffect(() => {
     if (!postId) return
     getComments(postId)
-      .then(setComments)
+      .then((res) => setComments(Array.isArray(res) ? res : []))
       .catch(() => {/* non-critical */})
       .finally(() => setCommentsLoading(false))
   }, [postId])
@@ -174,7 +174,7 @@ export default function PostDetailPage() {
           </div>
 
           <div className={styles.content}>
-            {post.content.split("\n").map((paragraph, i) =>
+            {(typeof post.content === "string" ? post.content : "").split("\n").map((paragraph, i) =>
               paragraph.trim() ? <p key={i}>{paragraph}</p> : <br key={i} />
             )}
           </div>

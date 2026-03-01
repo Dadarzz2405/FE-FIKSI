@@ -75,7 +75,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isOwnProfile || !token) return
     getMyPosts(token, 1, 20)
-      .then((res) => setPosts(res.posts))
+      .then((res) => setPosts(Array.isArray(res?.posts) ? res.posts : []))
       .catch(() => {})
   }, [isOwnProfile, token])
 

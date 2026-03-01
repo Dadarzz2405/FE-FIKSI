@@ -12,7 +12,7 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     getCategories()
-      .then((res) => setCategories(res.categories))
+      .then((res) => setCategories(Array.isArray(res?.categories) ? res.categories : []))
       .catch(() => setError("Gagal memuat kategori."))
       .finally(() => setLoading(false))
   }, [])
