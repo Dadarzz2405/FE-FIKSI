@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { getPostsByCategory } from "@/lib/api"
+import { getPostsBySubject } from "@/lib/api"
 import styles from "../categories.module.css"
 import postStyles from "../../posts/page.module.css"
 
-type CategoryPost = {
+type SubjectPost = {
   id: string
   title: string
   excerpt: string | null
@@ -17,13 +17,13 @@ type CategoryPost = {
 }
 
 type PageData = {
-  category: { id: string; name: string; slug: string; icon: string | null }
-  posts: CategoryPost[]
+  subject: { id: string; name: string; slug: string; icon: string | null; academic_category_id: string }
+  posts: SubjectPost[]
   total: number
   page: number
 }
 
-export default function CategoryDetailPage() {
+export default function SubjectDetailPage() {
   const params = useParams()
   const slug = params?.slug as string
   const [data, setData] = useState<PageData | null>(null)
@@ -35,7 +35,7 @@ export default function CategoryDetailPage() {
     if (!slug) return
     let cancelled = false
     queueMicrotask(() => setLoading(true))
-    getPostsByCategory(slug, page)
+    getPostsBySubject(slug, page)
       .then((res) => {
         if (cancelled) return
         const safePosts = Array.isArray((res as PageData | undefined)?.posts)
@@ -75,8 +75,8 @@ export default function CategoryDetailPage() {
 
   if (error || !data) return (
     <main className={styles.page}>
-      <p className={styles.errorState}>{error || "Kategori tidak ditemukan."}</p>
-      <Link href="/categories" style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>← Semua Kategori</Link>
+      <p className={styles.errorState}>{error || "Mata pelajaran tidak ditemukan."}</p>
+      <Link href="/categories" style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>← Semua Mata Pelajaran</Link>
     </main>
   )
 
@@ -84,12 +84,12 @@ export default function CategoryDetailPage() {
     <main className={styles.page}>
       <div>
         <Link href="/categories" style={{ fontSize: "0.8rem", color: "var(--text-secondary)", textDecoration: "none" }}>
-          ← Semua Kategori
+          ← Semua Mata Pelajaran
         </Link>
         <div className={styles.header} style={{ marginTop: "0.75rem" }}>
           <h1 className={styles.title}>
-            {data.category.icon && <span style={{ marginRight: "0.5rem" }}>{data.category.icon}</span>}
-            {data.category.name}
+            {data.subject.icon && <span style={{ marginRight: "0.5rem" }}>{data.subject.icon}</span>}
+            {data.subject.name}
           </h1>
           <p className={styles.subtitle}>{data.total} pertanyaan</p>
         </div>
@@ -97,7 +97,7 @@ export default function CategoryDetailPage() {
 
       {data.posts.length === 0 ? (
         <div className={postStyles.emptyState}>
-          <p>Belum ada pertanyaan di kategori ini.</p>
+          <p>Belum ada pertanyaan di mata pelajaran ini.</p>
           <p style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
             <Link href="/posts">Buat pertanyaan pertama →</Link>
           </p>

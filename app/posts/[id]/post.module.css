@@ -164,6 +164,103 @@
 
 .content p { margin: 0; }
 
+/* ── Upvote ── */
+.upvoteRow {
+  display: flex;
+  align-items: center;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.upvoteButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, transform 120ms ease;
+}
+
+.upvoteButton:hover:not(:disabled) {
+  border-color: #58a6ff;
+  color: #79c0ff;
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.upvoteButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.upvoteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Active / upvoted state */
+.upvoteButton.upvoted {
+  border-color: #388bfd;
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.18);
+}
+
+.upvoteButton.upvoted:hover:not(:disabled) {
+  border-color: #f85149;
+  color: #ff7b72;
+  background: rgba(248, 81, 73, 0.1);
+}
+
+.upvoteIcon {
+  width: 16px;
+  height: 16px;
+  transition: transform 200ms ease;
+  flex-shrink: 0;
+}
+
+.upvoteButton:hover .upvoteIcon {
+  transform: translateY(-2px);
+}
+
+.upvoteLabel {
+  line-height: 1;
+}
+
+.upvoteCount {
+  font-size: 0.875rem;
+  font-weight: 700;
+  min-width: 1ch;
+  line-height: 1;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.upvoteStatic {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.upvoteLoginHint {
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: 0.25rem;
+}
+
+.upvoteLoginHint:hover {
+  text-decoration: underline;
+}
+
 /* ── States ── */
 .loading,
 .error {

@@ -1,10 +1,14 @@
 "use client"
+/**
+ * File: components/Navbar.tsx
+ * Purpose: Top navigation bar showing branding and user menu.
+ * Notes: uses `useAuth` to show avatar, login button, and logout flow.
+ */
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useAuth } from "@/hooks/useAuth"
-import LanguageToggle from "./LanguageToggle"
 import styles from "./Navbar.module.css"
 
 export default function Navbar() {
@@ -38,7 +42,6 @@ export default function Navbar() {
         </Link>
 
         <div className={styles.authArea}>
-          <LanguageToggle compact />
           {loading ? (
             <div className={styles.avatarSkeleton} />
           ) : user ? (

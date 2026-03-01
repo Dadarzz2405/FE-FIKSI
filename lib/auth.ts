@@ -1,3 +1,8 @@
+/**
+ * File: lib/auth.ts
+ * Purpose: Lightweight auth helpers (login wrapper) used by UI.
+ * Notes: stores token to localStorage on success.
+ */
 import { request } from "../lib/api"
 
 export interface LoginResponse {
@@ -6,9 +11,13 @@ export interface LoginResponse {
 }
 
 export interface User {
-  id: number
+  id: string
   email: string
-  name: string
+  username: string
+  real_name?: string
+  avatar_url?: string
+  bio?: string
+  is_active: boolean
 }
 
 export async function login(email: string, password: string) {

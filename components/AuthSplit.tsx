@@ -1,4 +1,9 @@
 "use client"
+/**
+ * File: components/AuthSplit.tsx
+ * Purpose: Combined Login/Signup UI with social (Google) flow support.
+ * Notes: handles local form submit, signup flow, and redirects for OAuth.
+ */
 
 import { FormEvent, useState } from "react"
 import Image from "next/image"
@@ -177,21 +182,6 @@ export default function AuthSplit({ initialMode }: AuthSplitProps) {
               ? "Poin, streak, dan analisismu sudah menunggu."
               : "Raih poin, buka peringkat baru, dan kuasai setiap materi."}
           </p>
-
-          <div className="auth-preview-grid" aria-hidden="true">
-            <div className="auth-preview-card large">
-              <span className="auth-preview-kicker">Progress</span>
-              <strong>92% Minggu Ini</strong>
-            </div>
-            <div className="auth-preview-card">
-              <span className="auth-preview-kicker">Streak</span>
-              <strong>15 Hari</strong>
-            </div>
-            <div className="auth-preview-card">
-              <span className="auth-preview-kicker">Peringkat</span>
-              <strong>#8 Nasional</strong>
-            </div>
-          </div>
 
           <button
             type="submit"

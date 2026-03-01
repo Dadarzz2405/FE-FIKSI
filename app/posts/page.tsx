@@ -1,13 +1,35 @@
 "use client"
+/**
+ * File: app/posts/page.tsx
+ * Purpose: Posts listing and creation UI.
+ * Notes: manages pagination, file upload preview, create/delete handlers.
+ */
 
 import { useEffect, useState, FormEvent, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { getPosts, createPost, deletePost, getCategories, uploadImage, Post, Category } from "@/lib/api"
+import { getPosts, createPost, deletePost, getSubjects, uploadImage, Post, Subject } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./page.module.css"
 
 const LIMIT = 10
+
+function UpArrowIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  )
+}
 
 export default function PostsPage() {
   const { user, token } = useAuth()
@@ -24,8 +46,8 @@ export default function PostsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isPublished, setIsPublished] = useState(true)
-  const [categoryId, setCategoryId] = useState("")
-  const [categories, setCategories] = useState<Category[]>([])
+  const [subjectId, setSubjectId] = useState("")
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -53,16 +75,15 @@ export default function PostsPage() {
   }, [page])
 
   useEffect(() => {
-    getCategories()
-      .then((res) => setCategories(Array.isArray(res?.categories) ? res.categories : []))
-      .catch(() => {/* non-critical */})
+    getSubjects()
+      .then((res) => setSubjects(res.subjects))
+      .catch(() => { })
   }, [])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setImageFile(file)
-    // Generate local preview
     const reader = new FileReader()
     reader.onload = (ev) => setImagePreview(ev.target?.result as string)
     reader.readAsDataURL(file)
@@ -90,7 +111,7 @@ export default function PostsPage() {
         content,
         image_url: imageUrl,
         is_published: isPublished,
-        category_id: categoryId || undefined,
+        subject_id: subjectId || undefined,
       })
       if (newPost.is_published) {
         setPosts((prev) => [newPost, ...prev])
@@ -100,7 +121,7 @@ export default function PostsPage() {
       setContent("")
       clearImage()
       setIsPublished(true)
-      setCategoryId("")
+      setSubjectId("")
       setShowForm(false)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Gagal membuat postingan.")
@@ -132,7 +153,7 @@ export default function PostsPage() {
         <h1 className={styles.title}>Pertanyaan</h1>
         <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <Link href="/categories" className={styles.newButton} style={{ background: "transparent", border: "1px solid var(--border-color)", color: "var(--text-secondary)" }}>
-            📚 Kategori
+            📚 Mata Pelajaran
           </Link>
           {user ? (
             <button
@@ -182,24 +203,23 @@ export default function PostsPage() {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Kategori</label>
+              <label className={styles.label}>Mata Pelajaran</label>
               <select
                 className={styles.input}
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
                 disabled={submitting}
                 style={{ cursor: "pointer" }}
               >
-                <option value="">— Pilih kategori —</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.icon} {cat.name}
+                <option value="">— Pilih mata pelajaran —</option>
+                {subjects.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.icon} {sub.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* ── File upload (replaces URL input) ── */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Gambar (opsional)</label>
 
@@ -364,6 +384,13 @@ export default function PostsPage() {
                   {!post.is_published && (
                     <span className={styles.draftBadge}>DRAFT</span>
                   )}
+
+                  {/* Upvote count chip */}
+                  <span className={styles.upvoteChip}>
+                    <UpArrowIcon className={styles.upvoteChipIcon} />
+                    {post.upvote_count ?? 0}
+                  </span>
+
                   {user && post.author_id === user.id && (
                     <button
                       type="button"

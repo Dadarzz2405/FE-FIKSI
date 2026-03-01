@@ -1,3 +1,8 @@
+/**
+ * File: next.config.ts
+ * Purpose: Next.js configuration for allowed remote image hosts.
+ * This header adds a short explanation for maintainers.
+ */
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {

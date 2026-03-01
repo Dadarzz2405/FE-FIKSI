@@ -1,4 +1,9 @@
 "use client"
+/**
+ * File: hooks/useAuth.ts
+ * Purpose: React hook that keeps auth state in sync with localStorage and API.
+ * Notes: exposes `user`, `token`, `loading`, `logout`, and `refreshUser`.
+ */
 
 import { useState, useEffect, useCallback } from "react"
 import { getMe } from "@/lib/api"
