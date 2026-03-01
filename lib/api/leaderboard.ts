@@ -18,5 +18,11 @@ export function getLeaderboard(
   sortBy: "reputation" | "xp_total" | "cp_total" | "level" = "reputation",
   limit = 20,
 ) {
-  return request<LeaderboardEntry[]>(`/leaderboard/?sort_by=${sortBy}&limit=${limit}`)
+  return request<LeaderboardEntry[]>(
+    `/leaderboard/?sort_by=${sortBy}&limit=${limit}`,
+    "GET",
+    undefined,
+    undefined,
+    { cache: true, cacheTTL: 5 * 60 * 1000 } // 5 minutes - leaderboard changes slowly
+  )
 }

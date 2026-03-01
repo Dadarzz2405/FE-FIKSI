@@ -5,14 +5,14 @@
  * Notes: manages pagination, file upload preview, create/delete handlers.
  */
 
-import { useEffect, useState, FormEvent, useRef } from "react"
+import { useEffect, useState, FormEvent, useRef, useCallback, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { getPosts, createPost, deletePost, getSubjects, uploadImage, Post, Subject } from "@/lib/api"
 import { useAuth } from "@/hooks/useAuth"
 import styles from "./page.module.css"
 
-const LIMIT = 10
+const LIMIT = 20 // Increased to reduce API calls
 
 function UpArrowIcon({ className }: { className?: string }) {
   return (
@@ -54,9 +54,9 @@ export default function PostsPage() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const totalPages = Math.ceil(total / LIMIT)
+  const totalPages = useMemo(() => Math.ceil(total / LIMIT), [total])
 
-  async function fetchPosts(p: number) {
+  const fetchPosts = useCallback(async (p: number) => {
     setLoading(true)
     setError(null)
     try {
@@ -68,11 +68,15 @@ export default function PostsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchPosts(page)
-  }, [page])
+    // Prefetch next page
+    if (page < totalPages) {
+      getPosts(page + 1, LIMIT).catch(() => {})
+    }
+  }, [page, fetchPosts, totalPages])
 
   useEffect(() => {
     getSubjects()
