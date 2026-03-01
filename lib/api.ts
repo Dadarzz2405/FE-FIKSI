@@ -65,6 +65,9 @@ export async function uploadImage(
 
 // -- Auth --
 export function getHomepage() { return request<HomepageFeed>("/homepage/") }
+export type ComingSoonResponse = { status: string; message: string }
+export function getQuizzesComingSoon() { return request<ComingSoonResponse>("/quizzes/") }
+export function getSettingsComingSoon() { return request<ComingSoonResponse>("/settings/") }
 
 export function login(email: string, password: string) {
   return request<{
