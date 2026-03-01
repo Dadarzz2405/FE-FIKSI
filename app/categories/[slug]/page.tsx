@@ -41,13 +41,13 @@ export default function SubjectDetailPage() {
         const safePosts = Array.isArray((res as PageData | undefined)?.posts)
           ? (res as PageData).posts
           : []
-        const safeCategory = (res as PageData | undefined)?.category
-        if (!safeCategory || !safeCategory.id || !safeCategory.name || !safeCategory.slug) {
+        const safeSubject = (res as PageData | undefined)?.subject
+        if (!safeSubject || !safeSubject.id || !safeSubject.name || !safeSubject.slug) {
           setError("Kategori tidak ditemukan.")
           return
         }
         setData({
-          category: safeCategory,
+          subject: safeSubject,
           posts: safePosts,
           total: typeof (res as PageData | undefined)?.total === "number" ? (res as PageData).total : safePosts.length,
           page: typeof (res as PageData | undefined)?.page === "number" ? (res as PageData).page : page,
